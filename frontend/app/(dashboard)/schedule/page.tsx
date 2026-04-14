@@ -6,6 +6,22 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { 
   Calendar, 
   Clock, 
@@ -16,7 +32,8 @@ import {
   XCircle,
   AlertTriangle,
   Play,
-  RefreshCw
+  RefreshCw,
+  CalendarPlus
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -29,7 +46,8 @@ interface ScheduleAccount {
   lastLogin: string | null
 }
 
-const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const daysOfWeek = ['Unscheduled', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const scheduleDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 export default function SchedulePage() {
   const [accounts, setAccounts] = useState<ScheduleAccount[]>([])
@@ -43,6 +61,9 @@ export default function SchedulePage() {
     return dayMap[today] || 'Monday'
   })
   const [isRunning, setIsRunning] = useState(false)
+  const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [selectedAccount, setSelectedAccount] = useState<ScheduleAccount | null>(null)
+  const [assignDay, setAssignDay] = useState('Monday')
 
   useEffect(() => {
     fetchAccounts()
@@ -73,6 +94,9 @@ export default function SchedulePage() {
   }
 
   const getDayAccounts = (day: string) => {
+    if (day === 'Unscheduled') {
+      return accounts.filter(a => !a.loginDay || a.loginDay === '' || a.loginDay === 'Unscheduled')
+    }
     return accounts.filter(a => a.loginDay === day)
   }
 
@@ -101,6 +125,8 @@ export default function SchedulePage() {
 
       if (res.ok) {
         toast.success(`Automation started for ${selectedDay}`)
+        // Refresh accounts after a delay to show updated statuses
+        setTimeout(() => fetchAccounts(), 5000)
       } else {
         toast.error('Failed to start automation')
       }
@@ -108,6 +134,33 @@ export default function SchedulePage() {
       toast.error('Failed to trigger automation')
     } finally {
       setIsRunning(false)
+    }
+  }
+
+  const handleAssignDay = async () => {
+    if (!selectedAccount) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/accounts/${selectedAccount.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ loginDay: assignDay })
+      })
+
+      if (res.ok) {
+        toast.success(`Assigned to ${assignDay}`)
+        fetchAccounts()
+        setAssignModalOpen(false)
+        setSelectedAccount(null)
+      } else {
+        toast.error('Failed to assign day')
+      }
+    } catch (error) {
+      toast.error('Failed to assign day')
     }
   }
 
@@ -144,9 +197,6 @@ export default function SchedulePage() {
     )
   }
 
-  const currentStats = getDayStats(selectedDay)
-  const dayAccounts = getDayAccounts(selectedDay)
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -157,33 +207,37 @@ export default function SchedulePage() {
             View and manage login schedules by day
           </p>
         </div>
-        <Button onClick={handleRunAutomation} disabled={isRunning}>
-          {isRunning ? (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              Running...
-            </>
-          ) : (
-            <>
-              <Play className="mr-2 h-4 w-4" />
-              Run {selectedDay} Automation
-            </>
-          )}
-        </Button>
+        {selectedDay !== 'Unscheduled' && (
+          <Button onClick={handleRunAutomation} disabled={isRunning}>
+            {isRunning ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Running...
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 h-4 w-4" />
+                Run {selectedDay} Automation
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Day Tabs */}
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           {daysOfWeek.map(day => (
             <TabsTrigger key={day} value={day}>
-              {day.slice(0, 3)}
+              {day === 'Unscheduled' ? 'None' : day.slice(0, 3)}
             </TabsTrigger>
           ))}
         </TabsList>
 
         {daysOfWeek.map(day => {
           const stats = getDayStats(day)
+          const dayAccounts = getDayAccounts(day)
+          
           return (
             <TabsContent key={day} value={day} className="space-y-6">
               {/* Stats Cards */}
@@ -250,17 +304,20 @@ export default function SchedulePage() {
                     {day} Accounts ({stats.total})
                   </CardTitle>
                   <CardDescription>
-                    Accounts scheduled for login on {day}
+                    {day === 'Unscheduled' 
+                      ? 'Accounts that need to be assigned to a day'
+                      : `Accounts scheduled for login on ${day}`
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {getDayAccounts(day).length === 0 ? (
+                  {dayAccounts.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8">
-                      No accounts scheduled for {day}
+                      No accounts {day === 'Unscheduled' ? 'unscheduled' : `scheduled for ${day}`}
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {getDayAccounts(day).map((account) => (
+                      {dayAccounts.map((account) => (
                         <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -282,6 +339,19 @@ export default function SchedulePage() {
                                 ? new Date(account.lastLogin).toLocaleTimeString() 
                                 : 'Never'}
                             </div>
+                            {day === 'Unscheduled' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAccount(account)
+                                  setAssignModalOpen(true)
+                                }}
+                              >
+                                <CalendarPlus className="mr-1 h-3 w-3" />
+                                Assign
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -293,6 +363,39 @@ export default function SchedulePage() {
           )
         })}
       </Tabs>
+
+      {/* Assign Day Modal */}
+      <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Login Day</DialogTitle>
+            <DialogDescription>
+              Choose a day for {selectedAccount?.storeName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Select Day</Label>
+              <Select value={assignDay} onValueChange={setAssignDay}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {scheduleDays.map(day => (
+                    <SelectItem key={day} value={day}>{day}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssignDay}>Assign</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

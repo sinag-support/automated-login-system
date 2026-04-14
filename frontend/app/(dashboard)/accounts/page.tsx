@@ -12,7 +12,9 @@ import {
   Phone,
   Store,
   Calendar,
-  MoreHorizontal
+  MoreHorizontal,
+  Edit,
+  Key
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -73,7 +75,7 @@ interface Account {
   lastLogin: string | null
 }
 
-const loginDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const loginDays = ['Unscheduled', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const statusOptions = [
   { value: 'All', label: 'All Status' },
   { value: 'pending', label: 'Pending' },
@@ -84,7 +86,9 @@ const statusOptions = [
 const ITEMS_PER_PAGE = 20
 
 export default function AccountsPage() {
-  const [accounts, setAccounts] = useState<Account[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])  
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null)
+  const [passwordAccount, setPasswordAccount] = useState<Account | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -94,7 +98,7 @@ export default function AccountsPage() {
   const [newAccount, setNewAccount] = useState({ 
     mobileNumber: '', 
     storeName: '', 
-    loginDay: 'Monday' 
+    loginDay: 'Unscheduled' 
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -150,6 +154,62 @@ export default function AccountsPage() {
     } catch (error: any) {
       console.error('Delete error:', error)
       toast.error(error.message || 'Failed to delete account')
+    }
+  }
+
+  const handleEditAccount = (account: Account) => {
+    setEditingAccount(account)
+  }
+
+  const handleUpdatePassword = (account: Account) => {
+    setPasswordAccount(account)
+  }
+
+  const handleSaveEdit = async (id: string, data: Partial<Account>) => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/accounts/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      })
+
+      if (res.ok) {
+        toast.success('Account updated successfully')
+        fetchAccounts()
+        setEditingAccount(null)
+      } else {
+        toast.error('Failed to update account')
+      }
+    } catch (error) {
+      toast.error('Failed to update account')
+    }
+  }
+
+  const handleSavePassword = async (id: string, password: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/accounts/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ customPassword: password })
+      })
+
+      if (res.ok) {
+        toast.success('Password updated successfully')
+        fetchAccounts()
+        setPasswordAccount(null)
+      } else {
+        toast.error('Failed to update password')
+      }
+    } catch (error) {
+      toast.error('Failed to update password')
     }
   }
 
@@ -494,6 +554,15 @@ export default function AccountsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleEditAccount(account)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleUpdatePassword(account)}>
+                            <Key className="mr-2 h-4 w-4" />
+                            Update Password
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => handleDeleteAccount(account.id)}
@@ -561,6 +630,116 @@ export default function AccountsPage() {
             </PaginationItem>
           </PaginationContent>
         </Pagination>
+      )}
+
+      {/* Edit Account Modal */}
+      {editingAccount && (
+        <Dialog open={true} onOpenChange={() => setEditingAccount(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Account</DialogTitle>
+              <DialogDescription>
+                Update account information for {editingAccount.mobileNumber}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+              e.preventDefault()
+              const formData = new FormData(e.currentTarget)
+              handleSaveEdit(editingAccount.id, {
+                storeName: formData.get('storeName') as string,
+                loginDay: formData.get('loginDay') as string,
+                status: formData.get('status') as string
+              })
+            }} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Mobile Number</Label>
+                <Input value={editingAccount.mobileNumber} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-store">Store Name</Label>
+                <Input
+                  id="edit-store"
+                  name="storeName"
+                  defaultValue={editingAccount.storeName}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-day">Login Day</Label>
+                <Select name="loginDay" defaultValue={editingAccount.loginDay}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loginDays.map(day => (
+                      <SelectItem key={day} value={day}>{day}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select name="status" defaultValue={editingAccount.status}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="success">Success</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="needs_password_update">Needs Password</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingAccount(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Update Password Modal */}
+      {passwordAccount && (
+        <Dialog open={true} onOpenChange={() => setPasswordAccount(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Update Password</DialogTitle>
+              <DialogDescription>
+                Set a custom password for {passwordAccount.storeName}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+              e.preventDefault()
+              const formData = new FormData(e.currentTarget)
+              const password = formData.get('password') as string
+              const confirm = formData.get('confirm') as string
+              if (password !== confirm) {
+                toast.error('Passwords do not match')
+                return
+              }
+              handleSavePassword(passwordAccount.id, password)
+            }} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input id="new-password" name="password" type="password" required minLength={6} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Input id="confirm-password" name="confirm" type="password" required minLength={6} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setPasswordAccount(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Update Password</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
