@@ -34,111 +34,102 @@ export class LoginAutomation {
       console.log(`Attempting login for: ${username}`)
       
       // Visit login page
-      await page.goto('https://phmaindu.com', {
+      await page.goto('https://ph.pmiandu.com', {
         waitUntil: 'networkidle',
         timeout: 30000
       })
 
-      // Wait for and fill username field
-      const usernameSelectors = [
-        'input[name="username"]',
-        'input[type="text"]',
-        'input[type="tel"]',
-        '#username',
-        '#mobile',
-        '[placeholder*="mobile"]',
-        '[placeholder*="username"]'
-      ]
-
-      let usernameInput = null
-      for (const selector of usernameSelectors) {
-        try {
-          usernameInput = await page.waitForSelector(selector, { timeout: 5000 })
-          if (usernameInput) break
-        } catch (e) {
-          continue
-        }
-      }
-
+      // Wait for username field - using the exact ID from the site
+      const usernameInput = await page.waitForSelector('#signInName', { 
+        timeout: 10000 
+      })
+      
       if (!usernameInput) {
         throw new Error('Could not find username field')
       }
 
-      await usernameInput.fill(username)
+      // Clear any pre-filled text and enter username
+      await usernameInput.click()
+      await usernameInput.fill('')
+      await usernameInput.type(username, { delay: 50 })
+      console.log(`  ✓ Username entered: ${username}`)
 
-      // Fill password field
-      const passwordSelectors = [
-        'input[name="password"]',
-        'input[type="password"]',
-        '#password'
-      ]
-
-      let passwordInput = null
-      for (const selector of passwordSelectors) {
-        try {
-          passwordInput = await page.waitForSelector(selector, { timeout: 5000 })
-          if (passwordInput) break
-        } catch (e) {
-          continue
-        }
-      }
-
+      // Fill password field - using exact ID
+      const passwordInput = await page.waitForSelector('#password', { 
+        timeout: 5000 
+      })
+      
       if (!passwordInput) {
         throw new Error('Could not find password field')
       }
 
-      await passwordInput.fill(password)
+      await passwordInput.click()
+      await passwordInput.fill('')
+      await passwordInput.type(password, { delay: 50 })
+      console.log(`  ✓ Password entered`)
 
-      // Click login button
-      const buttonSelectors = [
-        'button[type="submit"]',
-        'input[type="submit"]',
-        'button:has-text("Login")',
-        'button:has-text("Sign in")',
-        'button:has-text("Submit")'
-      ]
+      // Small delay before clicking
+      await page.waitForTimeout(500)
 
-      let loginButton = null
-      for (const selector of buttonSelectors) {
-        try {
-          loginButton = await page.waitForSelector(selector, { timeout: 5000 })
-          if (loginButton) break
-        } catch (e) {
-          continue
-        }
-      }
-
+      // Click login button - using exact ID
+      const loginButton = await page.waitForSelector('#next', { 
+        timeout: 5000 
+      })
+      
       if (!loginButton) {
         throw new Error('Could not find login button')
       }
 
       await loginButton.click()
+      console.log(`  ✓ Login button clicked`)
 
       // Wait for navigation or error
       await Promise.race([
         page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }),
-        page.waitForSelector('.error, .alert-danger, [class*="error"]', { timeout: 15000 })
+        page.waitForSelector('.error, .alert-danger, #error, [role="alert"]', { timeout: 15000 })
       ]).catch(() => {
         // Timeout is okay - we'll check the result
       })
 
+      // Additional wait for page to stabilize
+      await page.waitForTimeout(2000)
+
       // Check if login was successful
       const currentUrl = page.url()
-      const hasError = await page.$('.error, .alert-danger, [class*="error"]').catch(() => null)
+      
+      // Check for error elements
+      const hasError = await page.$('.error, .alert-danger, #error, [role="alert"]').catch(() => null)
+      
+      // Check for error text in body
       const bodyText = await page.textContent('body').catch(() => '')
-
-      // Check for success indicators
+      
+      // Success indicators:
+      // - URL changed from login page
+      // - No error elements present
+      // - No error messages in body
       const success = !hasError &&
-        !currentUrl.includes('login') &&
-        !currentUrl.includes('signin') &&
+        !currentUrl.includes('/login') &&
+        !currentUrl.includes('/signin') &&
+        !currentUrl.includes('/auth') &&
         !bodyText?.toLowerCase().includes('invalid') &&
-        !bodyText?.toLowerCase().includes('incorrect')
+        !bodyText?.toLowerCase().includes('incorrect') &&
+        !bodyText?.toLowerCase().includes('wrong password') &&
+        !bodyText?.toLowerCase().includes('not found')
 
-      console.log(`Login ${success ? 'successful' : 'failed'} for: ${username}`)
+      if (success) {
+        console.log(`  ✅ Login successful for: ${username}`)
+        console.log(`  📍 Redirected to: ${currentUrl}`)
+      } else {
+        console.log(`  ❌ Login failed for: ${username}`)
+        if (hasError) {
+          const errorText = await hasError.textContent()
+          console.log(`  ⚠️ Error message: ${errorText}`)
+        }
+      }
 
       return { success }
     } catch (err: any) {
-      console.error(`Login error for ${username}:`, err.message)
+      console.error(`  🔥 Login error for ${username}:`, err.message)
       return {
         success: false,
         error: err.message || 'Automation failed'
