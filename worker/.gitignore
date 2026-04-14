@@ -1,9 +1,6 @@
 # Dependencies
 node_modules/
 
-# Build
-dist/
-
 # Environment
 .env
 
@@ -16,3 +13,6 @@ dist/
 
 # OS
 .DS_Store
+
+# DO NOT ignore dist - needed for deployment
+# dist/
