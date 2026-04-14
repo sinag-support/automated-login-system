@@ -1,0 +1,49 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id               String     @id @default(uuid())
+  mobileNumber     String     @unique @map("mobile_number") // Changed from username
+  storeName        String     @map("store_name")           // NEW FIELD
+  defaultPassword  String     @default("Password01")
+  customPassword   String?
+  loginDay         String     @map("login_day")
+  status           String     @default("pending")
+  lastLogin        DateTime?  @map("last_login")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+  loginLogs        LoginLog[]
+
+  @@index([loginDay])
+  @@index([status])
+  @@index([mobileNumber])
+  @@map("accounts")
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@map("admins")
+}
+
+model LoginLog {
+  id         String   @id @default(uuid())
+  accountId  String   @map("account_id")
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  status     String
+  error      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([accountId])
+  @@index([createdAt])
+  @@map("login_logs")
+}
