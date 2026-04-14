@@ -4,6 +4,16 @@ import { useState, useRef } from 'react'
 import { Upload, X } from 'lucide-react'
 import Papa from 'papaparse'
 import { getRandomLoginDay } from '@/lib/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface BulkImportModalProps {
   isOpen: boolean
@@ -15,6 +25,7 @@ export default function BulkImportModal({ isOpen, onClose, onImport }: BulkImpor
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,16 +33,22 @@ export default function BulkImportModal({ isOpen, onClose, onImport }: BulkImpor
     if (!selectedFile) return
 
     setFile(selectedFile)
+    setError(null)
 
     // Parse CSV for preview
     Papa.parse(selectedFile, {
       header: true,
+      skipEmptyLines: true,
       complete: (results) => {
         const data = results.data.slice(0, 5).map((row: any) => ({
-          ...row,
-          loginDay: getRandomLoginDay()
+          mobileNumber: row.mobileNumber || row.MobileNumber || row.mobile || '',
+          storeName: row.storeName || row.StoreName || row.store || row.Store || '',
+          loginDay: row.loginDay || row.LoginDay || getRandomLoginDay()
         }))
         setPreview(data)
+      },
+      error: (err) => {
+        setError(`Failed to parse CSV: ${err.message}`)
       }
     })
   }
@@ -40,106 +57,103 @@ export default function BulkImportModal({ isOpen, onClose, onImport }: BulkImpor
     if (!file) return
 
     setLoading(true)
+    setError(null)
     try {
       await onImport(file)
       onClose()
+    } catch (err: any) {
+      setError(err.message || 'Failed to import accounts')
     } finally {
       setLoading(false)
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={onClose}></div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Bulk Import Accounts</DialogTitle>
+          <DialogDescription>
+            Upload a CSV file with your accounts. The file should have columns: 
+            mobileNumber, storeName, loginDay (optional)
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="relative bg-white rounded-lg max-w-3xl w-full p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Bulk Import Accounts</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+        <div className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-          <div className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <div className="text-center">
-                <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                <div className="mt-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-indigo-600 hover:text-indigo-500 font-medium"
-                  >
-                    Upload a CSV file
-                  </button>
-                  <p className="text-xs text-gray-500 mt-1">
-                    CSV should have 'username' column. Optional: 'customPassword', 'loginDay'
-                  </p>
-                </div>
+          <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <div className="text-center">
+              <Upload className="mx-auto h-12 w-12 text-gray-400" />
+              <div className="mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Select CSV File
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  CSV should have 'mobileNumber', 'storeName', and optionally 'loginDay' columns
+                </p>
               </div>
             </div>
+          </div>
 
-            {file && (
-              <div className="mt-4">
-                <p className="text-sm text-gray-600 mb-2">
-                  Selected file: {file.name}
-                </p>
-                {preview.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-2">Preview (first 5 rows):</p>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Username</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Login Day</th>
+          {file && (
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">
+                Selected: {file.name}
+              </p>
+              {preview.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Preview (first 5 rows):</p>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                      <thead className="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Mobile Number</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Store Name</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Login Day</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                        {preview.map((row, index) => (
+                          <tr key={index}>
+                            <td className="px-3 py-2 text-sm">{row.mobileNumber}</td>
+                            <td className="px-3 py-2 text-sm">{row.storeName}</td>
+                            <td className="px-3 py-2 text-sm">{row.loginDay}</td>
                           </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {preview.map((row, index) => (
-                            <tr key={index}>
-                              <td className="px-3 py-2 text-sm text-gray-900">{row.username}</td>
-                              <td className="px-3 py-2 text-sm text-gray-500">{row.loginDay}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleImport}
-              disabled={!file || loading}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {loading ? 'Importing...' : 'Import Accounts'}
-            </button>
-          </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </div>
-    </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={handleImport} disabled={!file || loading}>
+            {loading ? 'Importing...' : 'Import Accounts'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
