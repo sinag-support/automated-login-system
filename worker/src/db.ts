@@ -68,13 +68,14 @@ export async function updateAccountStatus(
   }
 }
 
-export async function createLoginLog(accountId: string, status: string, error?: string) {
+// FIXED: Renamed parameter from 'error' to 'errorMessage'
+export async function createLoginLog(accountId: string, status: string, errorMessage?: string) {
   const { error } = await supabase
     .from('login_logs')
     .insert({
       account_id: accountId,
       status,
-      error,
+      error: errorMessage,  // Use the renamed parameter
       created_at: new Date().toISOString()
     })
 

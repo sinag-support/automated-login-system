@@ -137,11 +137,11 @@ export class LoginAutomation {
       console.log(`Login ${success ? 'successful' : 'failed'} for: ${username}`)
 
       return { success }
-    } catch (error: any) {
-      console.error(`Login error for ${username}:`, error.message)
+    } catch (err: any) {
+      console.error(`Login error for ${username}:`, err.message)
       return {
         success: false,
-        error: error.message || 'Automation failed'
+        error: err.message || 'Automation failed'
       }
     } finally {
       await context.close()
