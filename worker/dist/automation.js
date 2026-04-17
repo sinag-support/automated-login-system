@@ -30,7 +30,7 @@ class LoginAutomation {
         try {
             console.log(`Attempting login for: ${username}`);
             // Visit login page
-            await page.goto('https://phmaindu.com', {
+            await page.goto('https://ph.pmiandu.com', {
                 waitUntil: 'networkidle',
                 timeout: 30000
             });
