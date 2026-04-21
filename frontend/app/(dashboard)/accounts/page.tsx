@@ -55,7 +55,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Pagination,
   PaginationContent,
@@ -65,6 +64,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface Account {
   id: string
@@ -75,8 +75,7 @@ interface Account {
   lastLogin: string | null
 }
 
-const loginDays = ['All', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const scheduleDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const loginDays = ['Unscheduled', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const statusOptions = [
   { value: 'All', label: 'All Status' },
   { value: 'pending', label: 'Pending' },
@@ -99,7 +98,7 @@ export default function AccountsPage() {
   const [newAccount, setNewAccount] = useState({ 
     mobileNumber: '', 
     storeName: '', 
-    loginDay: 'Monday' 
+    loginDay: 'Unscheduled' 
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -402,7 +401,7 @@ export default function AccountsPage() {
                     <SelectValue placeholder="Select a day" />
                   </SelectTrigger>
                   <SelectContent>
-                    {scheduleDays.map(day => (
+                    {loginDays.map(day => (
                       <SelectItem key={day} value={day}>{day}</SelectItem>
                     ))}
                   </SelectContent>
@@ -423,7 +422,7 @@ export default function AccountsPage() {
 
       {/* Filters */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Filter className="h-4 w-4" />
             Filters
@@ -444,43 +443,31 @@ export default function AccountsPage() {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search by mobile or store name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          {/* Day Tabs - Same style as Schedule page */}
-          <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground">Login Day</Label>
-            <Tabs value={filterLoginDay} onValueChange={setFilterLoginDay} className="w-full">
-              <TabsList className="grid w-full grid-cols-7 h-10 sm:h-9 p-1">
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search by mobile or store name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={filterLoginDay} onValueChange={setFilterLoginDay}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Login Day" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Days</SelectItem>
                 {loginDays.map(day => (
-                  <TabsTrigger 
-                    key={day} 
-                    value={day} 
-                    className="flex items-center justify-center text-xs sm:text-sm px-1 py-1.5 sm:py-1"
-                  >
-                    <span className="hidden sm:inline">{day === 'All' ? 'All' : day.slice(0, 3)}</span>
-                    <span className="sm:hidden">{day === 'All' ? 'All' : day.slice(0, 1)}</span>
-                  </TabsTrigger>
+                  <SelectItem key={day} value={day}>{day}</SelectItem>
                 ))}
-              </TabsList>
-            </Tabs>
-          </div>
-          
-          {/* Status Filter */}
-          <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground">Status</Label>
+              </SelectContent>
+            </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -684,7 +671,7 @@ export default function AccountsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {scheduleDays.map(day => (
+                    {loginDays.map(day => (
                       <SelectItem key={day} value={day}>{day}</SelectItem>
                     ))}
                   </SelectContent>
