@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LoginAutomation = void 0;
-// worker/src/automation.ts
 const playwright_1 = require("playwright");
 class LoginAutomation {
     browser = null;
@@ -75,7 +74,6 @@ class LoginAutomation {
                 }
             }
             if (!usernameInput) {
-                // Try to find by label/placeholder using try-catch properly
                 try {
                     usernameInput = await page.getByLabel('Enter Email address or Mobile Number').first();
                     if (usernameInput)
@@ -223,7 +221,6 @@ class LoginAutomation {
                     }
                 }
             }
-            // Check body text for common error phrases - FIXED: Check for null
             const bodyText = await page.textContent('body').catch(() => '');
             const errorPhrases = [
                 'invalid username',
