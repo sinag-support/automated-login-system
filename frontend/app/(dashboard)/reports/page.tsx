@@ -96,27 +96,55 @@ export default function ReportsPage() {
   }
 
   const handleExportCSV = () => {
-    const csv = [
-      ['Mobile Number', 'Store Name', 'Login Day', 'Status', 'Last Login', 'Logged This Week'],
-      ...accounts.map(a => [
-        a.mobileNumber,
-        a.storeName,
-        a.loginDay,
-        a.status,
-        a.lastLogin || 'Never',
-        a.loggedThisWeek ? 'Yes' : 'No'
-      ])
-    ].map(row => row.join(',')).join('\n')
+    // Format mobile number for display
+    const formatMobileForCSV = (number: string): string => {
+        const cleaned = number.replace(/\D/g, '')
+        if (cleaned.startsWith('63') && cleaned.length === 12) {
+        return `+${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 8)} ${cleaned.slice(8)}`
+        }
+        if (cleaned.startsWith('0') && cleaned.length === 11) {
+        return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`
+        }
+        return cleaned
+    }
     
-    const blob = new Blob([csv], { type: 'text/csv' })
+    // Escape CSV fields properly
+    const escapeCSV = (value: string): string => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`
+        }
+        return value
+    }
+    
+    const headers = ['Mobile Number', 'Store Name', 'Login Day', 'Status', 'Last Login', 'Logged This Week']
+    
+    const rows = accounts.map(a => [
+        escapeCSV(formatMobileForCSV(a.mobileNumber)),
+        escapeCSV(a.storeName),
+        a.loginDay,
+        a.status.replace(/_/g, ' '),
+        a.lastLogin ? new Date(a.lastLogin).toLocaleString() : 'Never',
+        a.loggedThisWeek ? 'Yes' : 'No'
+    ])
+    
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+    ].join('\n')
+    
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `weekly-report-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(a)
     a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
     
     toast.success('Report exported')
-  }
+    }
 
   const getCompletionPercentage = () => {
     if (!report) return 0
