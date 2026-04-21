@@ -379,13 +379,13 @@ export default function AccountsPage() {
                 <Input
                   id="mobile"
                   type="tel"
-                  placeholder="09123456789 or 639123456789"
+                  placeholder="639123456789"
                   value={newAccount.mobileNumber}
                   onChange={(e) => setNewAccount({ ...newAccount, mobileNumber: e.target.value })}
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Format: 09XXXXXXXXX or 639XXXXXXXXX
+                  Format: 639XXXXXXXXX
                 </p>
               </div>
               <div className="space-y-2">

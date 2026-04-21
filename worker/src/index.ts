@@ -8,7 +8,9 @@ import {
   updateAccountStatus,
   createLoginLog,
   getSettings,
-  getSetting
+  isSuccessfulThisWeek,
+  generateWeeklyReport,
+  getAccountWeeklyStatus
 } from './db'
 
 const app = express()
@@ -18,14 +20,14 @@ const API_KEY = process.env.API_KEY || 'dev-api-key'
 // Cache settings
 let cachedSettings: Record<string, string> = {}
 let lastSettingsFetch = 0
-const SETTINGS_CACHE_TTL = 60000 // 1 minute
+const SETTINGS_CACHE_TTL = 60000
 
 async function refreshSettings() {
   const now = Date.now()
   if (now - lastSettingsFetch > SETTINGS_CACHE_TTL) {
     cachedSettings = await getSettings()
     lastSettingsFetch = now
-    console.log('📋 Settings refreshed:', Object.keys(cachedSettings).length, 'keys')
+    console.log('📋 Settings refreshed')
   }
   return cachedSettings
 }
@@ -44,12 +46,13 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
 
 // Main automation function
 async function runAutomation(day?: string) {
-  console.log(`\n🚀 Starting login automation - ${new Date().toISOString()}`)
+  const startTime = new Date()
+  console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
+  console.log(`🚀 STARTING LOGIN AUTOMATION`)
+  console.log(`📅 Date: ${startTime.toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}`)
+  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`)
   
-  // Refresh settings before running
   const settings = await refreshSettings()
-  
-  // Get automation settings
   const delayMs = parseInt(settings.delay_between_logins || '3000')
   const maxRetries = parseInt(settings.max_retries || '2')
   const autoRetry = settings.auto_retry === 'true'
@@ -61,14 +64,32 @@ async function runAutomation(day?: string) {
 
   try {
     const accounts = day ? await getAccountsForDay(day) : await getAccountsForToday()
-    console.log(`📋 Found ${accounts.length} accounts to process`)
+    
+    // Track weekly status for reporting
+    const accountsToProcess = accounts.filter(account => {
+      if (account.status === 'success' && isSuccessfulThisWeek(account.last_login)) {
+        console.log(`⏭️ SKIP: ${account.store_name} - already logged in this week (${account.last_login})`)
+        return false
+      }
+      
+      if (account.status === 'success') {
+        console.log(`🔄 RUN: ${account.store_name} - success was from previous week`)
+      } else {
+        console.log(`🔄 RUN: ${account.store_name} - status is "${account.status}"`)
+      }
+      return true
+    })
+    
+    console.log(`\n📊 SUMMARY: ${accounts.length} total, ${accountsToProcess.length} to process, ${accounts.length - accountsToProcess.length} skipped\n`)
 
     let successCount = 0
     let failCount = 0
+    const results: any[] = []
 
-    for (let i = 0; i < accounts.length; i++) {
-      const account = accounts[i]
-      console.log(`\n[${i + 1}/${accounts.length}] Processing: ${account.store_name} (${account.mobile_number})`)
+    for (let i = 0; i < accountsToProcess.length; i++) {
+      const account = accountsToProcess[i]
+      console.log(`\n[${i + 1}/${accountsToProcess.length}] 📱 ${account.store_name}`)
+      console.log(`   📞 ${account.mobile_number}`)
 
       let attemptSuccess = false
       let lastError: string | undefined
@@ -77,20 +98,18 @@ async function runAutomation(day?: string) {
       
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         if (attempt > 1) {
-          console.log(`  🔄 Retry attempt ${attempt}/${maxAttempts}`)
+          console.log(`   🔄 Retry ${attempt}/${maxAttempts}`)
           await LoginAutomation.delay(1000, 2000)
         }
         
         try {
-          // Determine password
           const password = account.customPassword || account.defaultPassword
 
-          // Add delay between accounts (use setting)
           if (i > 0 || attempt > 1) {
-            await LoginAutomation.delay(delayMs - 500, delayMs + 500)
+            const delay = delayMs + Math.floor(Math.random() * 1000) - 500
+            await LoginAutomation.delay(delay, delay + 1000)
           }
 
-          // Attempt login
           const result = await automation.login(account.mobile_number, password)
           
           if (result.success) {
@@ -104,26 +123,42 @@ async function runAutomation(day?: string) {
         }
       }
 
-      // Update account status
       const status = attemptSuccess ? 'success' : 'needs_password_update'
       await updateAccountStatus(account.id, status)
-
-      // Create log entry
       await createLoginLog(account.id, attemptSuccess ? 'success' : 'failed', lastError)
+
+      results.push({
+        store: account.store_name,
+        mobile: account.mobile_number,
+        success: attemptSuccess,
+        status
+      })
 
       if (attemptSuccess) {
         successCount++
-        console.log(`  ✅ Status: success`)
+        console.log(`   ✅ SUCCESS - Weekly login complete!`)
       } else {
         failCount++
-        console.log(`  ❌ Status: needs_password_update`)
+        console.log(`   ❌ FAILED - Needs password update`)
       }
     }
 
-    console.log(`\n📊 Summary: ${successCount} successful, ${failCount} failed`)
-    console.log(`✅ Automation completed - ${new Date().toISOString()}\n`)
+    const endTime = new Date()
+    const duration = Math.round((endTime.getTime() - startTime.getTime()) / 1000)
+    
+    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
+    console.log(`📊 FINAL SUMMARY`)
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
+    console.log(`✅ Successful: ${successCount}`)
+    console.log(`❌ Failed: ${failCount}`)
+    console.log(`⏱️ Duration: ${duration} seconds`)
+    console.log(`📅 Completed: ${endTime.toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}`)
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`)
+    
+    return { successCount, failCount, duration, results }
   } catch (error) {
     console.error('❌ Automation failed:', error)
+    throw error
   } finally {
     await automation.cleanup()
   }
@@ -146,6 +181,30 @@ app.post('/run-now', authMiddleware, async (req: Request, res: Response) => {
     message: 'Manual automation triggered',
     day: day || 'today'
   })
+})
+
+// NEW: Get weekly report
+app.get('/report/weekly', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const report = await generateWeeklyReport()
+    res.json({
+      ...report,
+      generatedAt: new Date().toISOString()
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// NEW: Get account status for current week
+app.get('/account/:id/weekly-status', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+    const status = await getAccountWeeklyStatus(id)
+    res.json(status)
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
 })
 
 app.get('/health', (req: Request, res: Response) => {
@@ -185,6 +244,14 @@ cron.schedule('0 8 * * 1-6', () => {
   timezone: 'Asia/Manila'
 })
 
+// Weekly reset (Monday 12:01 AM)
+cron.schedule('1 0 * * 1', async () => {
+  console.log('📅 Monday reset: New week starting...')
+  // Optional: Reset statuses if needed
+}, {
+  timezone: 'Asia/Manila'
+})
+
 console.log('📅 Cron job scheduled: 8 AM Monday-Saturday (Asia/Manila)')
 
 app.listen(PORT, () => {
@@ -192,7 +259,6 @@ app.listen(PORT, () => {
   console.log(`🔑 API Key: ${API_KEY === 'dev-api-key' ? 'development mode' : 'configured'}`)
 })
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully')
   process.exit(0)

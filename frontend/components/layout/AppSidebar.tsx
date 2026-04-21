@@ -22,6 +22,7 @@ import {
   LogOut,
   Store,
   Calendar,
+  FileText,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -41,6 +42,7 @@ const navigation = [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
       { name: 'Accounts', href: '/accounts', icon: Users },
       { name: 'Schedule', href: '/schedule', icon: Calendar },
+      { name: 'Reports', href: '/reports', icon: FileText },
     ]
   },
   {
