@@ -124,7 +124,15 @@ export default function AccountsPage() {
       }
 
       const data = await res.json()
-      setAccounts(data)
+      const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Unscheduled']
+      
+      const sortedData = data.sort((a: Account, b: Account) => {
+        const dayA = a.loginDay || 'Unscheduled'
+        const dayB = b.loginDay || 'Unscheduled'
+        return dayOrder.indexOf(dayA) - dayOrder.indexOf(dayB)
+      })
+      
+      setAccounts(sortedData)
     } catch (error: any) {
       console.error('Failed to fetch accounts:', error)
       toast.error('Failed to load accounts')
