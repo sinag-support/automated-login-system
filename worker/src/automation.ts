@@ -47,7 +47,19 @@ export class LoginAutomation {
     const page = await context.newPage()
 
     try {
+      // ===== FORMAT PHONE NUMBER WITH +63 PREFIX =====
+      let formattedUsername = username
+      if (username.startsWith('63') && !username.startsWith('+')) {
+        formattedUsername = '+' + username
+      }
+      if (username.startsWith('0')) {
+        formattedUsername = '+63' + username.slice(1)
+      }
+      
       console.log(`\n📱 Processing: ${username}`)
+      if (formattedUsername !== username) {
+        console.log(`  📝 Formatted as: ${formattedUsername}`)
+      }
       
       const loginUrl = process.env.LOGIN_URL || 'https://ph.pmiandu.com'
       console.log(`🌐 Navigating to: ${loginUrl}`)
@@ -84,7 +96,6 @@ export class LoginAutomation {
       }
 
       if (!usernameInput) {
-        // Try to find by label/placeholder using try-catch properly
         try {
           usernameInput = await page.getByLabel('Enter Email address or Mobile Number').first()
           if (usernameInput) console.log(`  ✓ Found username field by label`)
@@ -105,7 +116,7 @@ export class LoginAutomation {
       await usernameInput.click()
       await page.waitForTimeout(200)
       await usernameInput.fill('')
-      await usernameInput.type(username, { delay: 50 + Math.floor(Math.random() * 50) })
+      await usernameInput.type(formattedUsername, { delay: 50 + Math.floor(Math.random() * 50) })
       console.log(`  ✓ Username entered`)
 
       // ===== PASSWORD FIELD =====
@@ -211,7 +222,7 @@ export class LoginAutomation {
         console.log(`  ⏱️ Navigation timeout - checking result anyway`)
       })
 
-      await page.waitForTimeout(2000)
+      await page.waitForTimeout(3000)
 
       // ===== CHECK SUCCESS =====
       const currentUrl = page.url()
@@ -241,7 +252,6 @@ export class LoginAutomation {
         }
       }
 
-      // Check body text for common error phrases - FIXED: Check for null
       const bodyText = await page.textContent('body').catch(() => '')
       const errorPhrases = [
         'invalid username',
@@ -252,12 +262,13 @@ export class LoginAutomation {
         'account not found',
         'login failed',
         'authentication failed',
-        'please check your credentials'
+        'please check your credentials',
+        'Siguraduhing nag-uumpisa sa +63'
       ]
       
       if (!hasError && bodyText) {
         for (const phrase of errorPhrases) {
-          if (bodyText.toLowerCase().includes(phrase)) {
+          if (bodyText.toLowerCase().includes(phrase.toLowerCase())) {
             hasError = true
             errorMessage = phrase
             break
@@ -269,6 +280,7 @@ export class LoginAutomation {
         !currentUrl.includes('/login') &&
         !currentUrl.includes('/signin') &&
         !currentUrl.includes('/auth') &&
+        !currentUrl.includes('/authorize') &&
         currentUrl !== loginUrl
 
       if (isLoggedIn) {
