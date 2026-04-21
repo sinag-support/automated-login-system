@@ -97,3 +97,35 @@ export async function getAccountsNeedingPasswordUpdate(): Promise<Account[]> {
 
   return data || []
 }
+
+export async function getSettings(): Promise<Record<string, string>> {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('key, value')
+  
+  if (error) {
+    console.error('Failed to fetch settings:', error)
+    return {}
+  }
+  
+  const settings: Record<string, string> = {}
+  data.forEach((item: any) => {
+    settings[item.key] = item.value
+  })
+  
+  return settings
+}
+
+export async function getSetting(key: string, defaultValue: string = ''): Promise<string> {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', key)
+    .single()
+  
+  if (error || !data) {
+    return defaultValue
+  }
+  
+  return data.value
+}

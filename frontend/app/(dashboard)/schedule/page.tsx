@@ -46,7 +46,7 @@ interface ScheduleAccount {
   lastLogin: string | null
 }
 
-const daysOfWeek = ['Unscheduled', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const scheduleDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 export default function SchedulePage() {
@@ -94,9 +94,6 @@ export default function SchedulePage() {
   }
 
   const getDayAccounts = (day: string) => {
-    if (day === 'Unscheduled') {
-      return accounts.filter(a => !a.loginDay || a.loginDay === '' || a.loginDay === 'Unscheduled')
-    }
     return accounts.filter(a => a.loginDay === day)
   }
 
@@ -125,7 +122,6 @@ export default function SchedulePage() {
 
       if (res.ok) {
         toast.success(`Automation started for ${selectedDay}`)
-        // Refresh accounts after a delay to show updated statuses
         setTimeout(() => fetchAccounts(), 5000)
       } else {
         toast.error('Failed to start automation')
@@ -185,9 +181,9 @@ export default function SchedulePage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 px-2 sm:px-0">
         <Skeleton className="h-9 w-48" />
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
@@ -198,38 +194,41 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Schedule</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Schedule</h1>
+          <p className="text-sm text-muted-foreground mt-1 sm:mt-2">
             View and manage login schedules by day
           </p>
         </div>
-        {selectedDay !== 'Unscheduled' && (
-          <Button onClick={handleRunAutomation} disabled={isRunning}>
-            {isRunning ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Running...
-              </>
-            ) : (
-              <>
-                <Play className="mr-2 h-4 w-4" />
-                Run {selectedDay} Automation
-              </>
-            )}
-          </Button>
-        )}
       </div>
 
+      <Button 
+        onClick={handleRunAutomation} 
+        disabled={isRunning}
+        className="w-full sm:w-auto"
+      >
+        {isRunning ? (
+          <>
+            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            Running...
+          </>
+        ) : (
+          <>
+            <Play className="mr-2 h-4 w-4" />
+            Run {selectedDay} Automation
+          </>
+        )}
+      </Button>
+
       {/* Day Tabs */}
-      <Tabs value={selectedDay} onValueChange={setSelectedDay} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+      <Tabs value={selectedDay} onValueChange={setSelectedDay} className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
           {daysOfWeek.map(day => (
-            <TabsTrigger key={day} value={day}>
-              {day === 'Unscheduled' ? 'None' : day.slice(0, 3)}
+            <TabsTrigger key={day} value={day} className="text-xs sm:text-sm px-1 sm:px-3">
+              {day.slice(0, 3)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -239,58 +238,58 @@ export default function SchedulePage() {
           const dayAccounts = getDayAccounts(day)
           
           return (
-            <TabsContent key={day} value={day} className="space-y-6">
+            <TabsContent key={day} value={day} className="space-y-4 sm:space-y-6">
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                  <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                       Total Accounts
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                     <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold">{stats.total}</p>
-                      <Users className="h-5 w-5 text-muted-foreground" />
+                      <p className="text-xl sm:text-2xl font-bold">{stats.total}</p>
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                  <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                       Successful
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                     <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-green-600">{stats.success}</p>
-                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.success}</p>
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                  <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                       Failed
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                     <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
-                      <XCircle className="h-5 w-5 text-red-600" />
+                      <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.failed}</p>
+                      <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
                     </div>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                <Card className="col-span-2 lg:col-span-1">
+                  <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                       Needs Password
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                     <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-orange-600">{stats.needsPassword}</p>
-                      <AlertTriangle className="h-5 w-5 text-orange-600" />
+                      <p className="text-xl sm:text-2xl font-bold text-orange-600">{stats.needsPassword}</p>
+                      <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
                     </div>
                   </CardContent>
                 </Card>
@@ -298,60 +297,44 @@ export default function SchedulePage() {
 
               {/* Accounts List */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                     {day} Accounts ({stats.total})
                   </CardTitle>
-                  <CardDescription>
-                    {day === 'Unscheduled' 
-                      ? 'Accounts that need to be assigned to a day'
-                      : `Accounts scheduled for login on ${day}`
-                    }
+                  <CardDescription className="text-xs sm:text-sm">
+                    Accounts scheduled for login on ${day}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                   {dayAccounts.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No accounts {day === 'Unscheduled' ? 'unscheduled' : `scheduled for ${day}`}
+                    <p className="text-center text-muted-foreground py-8 text-sm">
+                      No accounts scheduled for ${day}
                     </p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       {dayAccounts.map((account) => (
-                        <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <Store className="h-5 w-5 text-primary" />
+                        <div key={account.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-2">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <Store className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                             </div>
-                            <div>
-                              <p className="font-medium">{account.storeName}</p>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Phone className="h-3 w-3" />
-                                {formatMobileNumber(account.mobileNumber)}
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{account.storeName}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Phone className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{formatMobileNumber(account.mobileNumber)}</span>
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-between sm:justify-end gap-2 ml-10 sm:ml-0">
                             {getStatusBadge(account.status)}
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-xs text-muted-foreground whitespace-nowrap">
                               <Clock className="inline h-3 w-3 mr-1" />
                               {account.lastLogin 
                                 ? new Date(account.lastLogin).toLocaleTimeString() 
                                 : 'Never'}
                             </div>
-                            {day === 'Unscheduled' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedAccount(account)
-                                  setAssignModalOpen(true)
-                                }}
-                              >
-                                <CalendarPlus className="mr-1 h-3 w-3" />
-                                Assign
-                              </Button>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -366,7 +349,7 @@ export default function SchedulePage() {
 
       {/* Assign Day Modal */}
       <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Assign Login Day</DialogTitle>
             <DialogDescription>
@@ -388,11 +371,11 @@ export default function SchedulePage() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignModalOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setAssignModalOpen(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={handleAssignDay}>Assign</Button>
+            <Button onClick={handleAssignDay} className="w-full sm:w-auto">Assign</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

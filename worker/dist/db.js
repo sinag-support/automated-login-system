@@ -9,6 +9,8 @@ exports.getAccountsForDay = getAccountsForDay;
 exports.updateAccountStatus = updateAccountStatus;
 exports.createLoginLog = createLoginLog;
 exports.getAccountsNeedingPasswordUpdate = getAccountsNeedingPasswordUpdate;
+exports.getSettings = getSettings;
+exports.getSetting = getSetting;
 const supabase_js_1 = require("@supabase/supabase-js");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
@@ -75,4 +77,29 @@ async function getAccountsNeedingPasswordUpdate() {
         return [];
     }
     return data || [];
+}
+async function getSettings() {
+    const { data, error } = await exports.supabase
+        .from('settings')
+        .select('key, value');
+    if (error) {
+        console.error('Failed to fetch settings:', error);
+        return {};
+    }
+    const settings = {};
+    data.forEach((item) => {
+        settings[item.key] = item.value;
+    });
+    return settings;
+}
+async function getSetting(key, defaultValue = '') {
+    const { data, error } = await exports.supabase
+        .from('settings')
+        .select('value')
+        .eq('key', key)
+        .single();
+    if (error || !data) {
+        return defaultValue;
+    }
+    return data.value;
 }

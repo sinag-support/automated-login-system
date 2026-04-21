@@ -1,23 +1,40 @@
 import 'dotenv/config'
-import express from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import cron from 'node-cron'
 import { LoginAutomation } from './automation'
 import {
   getAccountsForToday,
   getAccountsForDay,
   updateAccountStatus,
-  createLoginLog
+  createLoginLog,
+  getSettings,
+  getSetting
 } from './db'
 
 const app = express()
 const PORT = process.env.PORT || 3001
 const API_KEY = process.env.API_KEY || 'dev-api-key'
 
+// Cache settings
+let cachedSettings: Record<string, string> = {}
+let lastSettingsFetch = 0
+const SETTINGS_CACHE_TTL = 60000 // 1 minute
+
+async function refreshSettings() {
+  const now = Date.now()
+  if (now - lastSettingsFetch > SETTINGS_CACHE_TTL) {
+    cachedSettings = await getSettings()
+    lastSettingsFetch = now
+    console.log('📋 Settings refreshed:', Object.keys(cachedSettings).length, 'keys')
+  }
+  return cachedSettings
+}
+
 // Middleware
 app.use(express.json())
 
 // Auth middleware
-const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const apiKey = req.headers['x-api-key']
   if (apiKey !== API_KEY) {
     return res.status(401).json({ error: 'Unauthorized' })
@@ -28,6 +45,16 @@ const authMiddleware = (req: express.Request, res: express.Response, next: expre
 // Main automation function
 async function runAutomation(day?: string) {
   console.log(`\n🚀 Starting login automation - ${new Date().toISOString()}`)
+  
+  // Refresh settings before running
+  const settings = await refreshSettings()
+  
+  // Get automation settings
+  const delayMs = parseInt(settings.delay_between_logins || '3000')
+  const maxRetries = parseInt(settings.max_retries || '2')
+  const autoRetry = settings.auto_retry === 'true'
+  
+  console.log(`⚙️ Settings: delay=${delayMs}ms, retries=${maxRetries}, autoRetry=${autoRetry}`)
 
   const automation = new LoginAutomation()
   await automation.initialize()
@@ -43,37 +70,53 @@ async function runAutomation(day?: string) {
       const account = accounts[i]
       console.log(`\n[${i + 1}/${accounts.length}] Processing: ${account.store_name} (${account.mobile_number})`)
 
-      try {
-        // Determine password
-        const password = account.customPassword || account.defaultPassword
-
-        // Add random delay between logins (2-5 seconds)
-        if (i > 0) {
-          await LoginAutomation.delay(2000, 5000)
+      let attemptSuccess = false
+      let lastError: string | undefined
+      
+      const maxAttempts = autoRetry ? maxRetries : 1
+      
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (attempt > 1) {
+          console.log(`  🔄 Retry attempt ${attempt}/${maxAttempts}`)
+          await LoginAutomation.delay(1000, 2000)
         }
+        
+        try {
+          // Determine password
+          const password = account.customPassword || account.defaultPassword
 
-        // Attempt login
-        const result = await automation.login(account.mobile_number, password)
+          // Add delay between accounts (use setting)
+          if (i > 0 || attempt > 1) {
+            await LoginAutomation.delay(delayMs - 500, delayMs + 500)
+          }
 
-        // Update account status
-        const status = result.success ? 'success' : 'needs_password_update'
-        await updateAccountStatus(account.id, status)
-
-        // Create log entry
-        await createLoginLog(account.id, result.success ? 'success' : 'failed', result.error)
-
-        if (result.success) {
-          successCount++
-        } else {
-          failCount++
+          // Attempt login
+          const result = await automation.login(account.mobile_number, password)
+          
+          if (result.success) {
+            attemptSuccess = true
+            break
+          } else {
+            lastError = result.error
+          }
+        } catch (error: any) {
+          lastError = error.message
         }
+      }
 
-        console.log(`  ${result.success ? '✅' : '❌'} Status: ${status}`)
-      } catch (error: any) {
-        console.error(`  ❌ Error processing account:`, error.message)
-        await updateAccountStatus(account.id, 'failed')
-        await createLoginLog(account.id, 'failed', error.message)
+      // Update account status
+      const status = attemptSuccess ? 'success' : 'needs_password_update'
+      await updateAccountStatus(account.id, status)
+
+      // Create log entry
+      await createLoginLog(account.id, attemptSuccess ? 'success' : 'failed', lastError)
+
+      if (attemptSuccess) {
+        successCount++
+        console.log(`  ✅ Status: success`)
+      } else {
         failCount++
+        console.log(`  ❌ Status: needs_password_update`)
       }
     }
 
@@ -87,7 +130,7 @@ async function runAutomation(day?: string) {
 }
 
 // API Routes
-app.post('/run-daily-logins', authMiddleware, async (req, res) => {
+app.post('/run-daily-logins', authMiddleware, async (req: Request, res: Response) => {
   const { day } = req.body
   runAutomation(day).catch(console.error)
   res.json({
@@ -96,7 +139,7 @@ app.post('/run-daily-logins', authMiddleware, async (req, res) => {
   })
 })
 
-app.post('/run-now', authMiddleware, async (req, res) => {
+app.post('/run-now', authMiddleware, async (req: Request, res: Response) => {
   const { day } = req.body
   runAutomation(day).catch(console.error)
   res.json({
@@ -105,7 +148,7 @@ app.post('/run-now', authMiddleware, async (req, res) => {
   })
 })
 
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -113,7 +156,12 @@ app.get('/health', (req, res) => {
   })
 })
 
-app.get('/status', authMiddleware, async (req, res) => {
+app.get('/settings', authMiddleware, async (req: Request, res: Response) => {
+  const settings = await refreshSettings()
+  res.json(settings)
+})
+
+app.get('/status', authMiddleware, async (req: Request, res: Response) => {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   const stats: Record<string, number> = {}
 

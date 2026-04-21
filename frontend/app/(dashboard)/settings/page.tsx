@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,8 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PasswordInput } from '@/components/ui/password-input'
 import {
   Select,
   SelectContent,
@@ -28,35 +30,77 @@ import {
 import {
   Settings,
   Lock,
-  Bell,
   Database,
   Play,
   Key,
   Save,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Loader2,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function SettingsPage() {
-  const [adminEmail, setAdminEmail] = useState('admin@example.com')
-  const [defaultPassword, setDefaultPassword] = useState('Password01')
+  const [loading, setLoading] = useState(true)
+  const [adminEmail, setAdminEmail] = useState('')
+  const [defaultPassword, setDefaultPassword] = useState('')
   const [delayBetweenLogins, setDelayBetweenLogins] = useState('3000')
   const [maxRetries, setMaxRetries] = useState('2')
-  const [notifications, setNotifications] = useState(true)
   const [autoRetry, setAutoRetry] = useState(true)
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [showDefaultPassword, setShowDefaultPassword] = useState(false)
 
-  const handleSaveGeneral = async () => {
+  // Load settings on mount
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings')
+      const data = await res.json()
+      
+      setAdminEmail(data.admin_email || 'admin@example.com')
+      setDefaultPassword(data.default_password || 'Password01')
+      setDelayBetweenLogins(data.delay_between_logins || '3000')
+      setMaxRetries(data.max_retries || '2')
+      setAutoRetry(data.auto_retry === 'true')
+    } catch (error) {
+      console.error('Failed to load settings:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSaveAllSettings = async () => {
     setIsSaving(true)
     try {
-      // Save settings to API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      toast.success('Settings saved successfully')
+      const settings = {
+        admin_email: adminEmail,
+        default_password: defaultPassword,
+        delay_between_logins: delayBetweenLogins,
+        max_retries: maxRetries,
+        auto_retry: String(autoRetry)
+      }
+      
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      })
+      
+      if (res.ok) {
+        toast.success('All settings saved successfully')
+      } else {
+        throw new Error('Failed to save settings')
+      }
     } catch (error) {
       toast.error('Failed to save settings')
     } finally {
@@ -77,82 +121,115 @@ export default function SettingsPage() {
       return
     }
 
-    setIsSaving(true)
+    setIsLoading(true)
     try {
-      // Update password via API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      toast.success('Password changed successfully')
-      setShowChangePassword(false)
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      const token = localStorage.getItem('token')
+      
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      })
+      
+      const data = await res.json()
+      
+      if (res.ok) {
+        toast.success('Password changed successfully')
+        setShowChangePassword(false)
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+      } else {
+        toast.error(data.error || 'Failed to change password')
+      }
     } catch (error) {
       toast.error('Failed to change password')
     } finally {
-      setIsSaving(false)
+      setIsLoading(false)
     }
   }
 
   const handleTestConnection = async () => {
-    try {
-      const res = await fetch('/api/health')
-      if (res.ok) {
-        toast.success('Database connection successful')
-      } else {
-        toast.error('Database connection failed')
+    toast.promise(
+      async () => {
+        const res = await fetch('/api/health')
+        const data = await res.json()
+        
+        if (!res.ok) {
+          throw new Error(data.error || 'Database connection failed')
+        }
+        
+        return data
+      },
+      {
+        loading: 'Testing connection...',
+        success: (data) => `Database connected successfully!`,
+        error: (err) => `Connection failed: ${err.message}`,
       }
-    } catch (error) {
-      toast.error('Failed to test connection')
-    }
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6 px-2 sm:px-0">
+        <Skeleton className="h-9 w-48" />
+        <Skeleton className="h-5 w-96" />
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0 pb-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1 sm:mt-2">
           Manage your application settings and preferences
         </p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="general">
-            <Settings className="mr-2 h-4 w-4" />
-            General
+      <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-3 h-10 sm:h-9 p-1">
+          <TabsTrigger value="general" className="flex items-center justify-center gap-1.5 sm:gap-2 h-full data-[state=active]:bg-background">
+            <Settings className="h-4 w-4 shrink-0" />
+            <span className="text-xs sm:text-sm font-medium">General</span>
           </TabsTrigger>
-          <TabsTrigger value="security">
-            <Lock className="mr-2 h-4 w-4" />
-            Security
+          <TabsTrigger value="security" className="flex items-center justify-center gap-1.5 sm:gap-2 h-full data-[state=active]:bg-background">
+            <Lock className="h-4 w-4 shrink-0" />
+            <span className="text-xs sm:text-sm font-medium">Security</span>
           </TabsTrigger>
-          <TabsTrigger value="automation">
-            <Play className="mr-2 h-4 w-4" />
-            Automation
-          </TabsTrigger>
-          <TabsTrigger value="notifications">
-            <Bell className="mr-2 h-4 w-4" />
-            Notifications
+          <TabsTrigger value="automation" className="flex items-center justify-center gap-1.5 sm:gap-2 h-full data-[state=active]:bg-background">
+            <Play className="h-4 w-4 shrink-0" />
+            <span className="text-xs sm:text-sm font-medium">Automation</span>
           </TabsTrigger>
         </TabsList>
 
         {/* General Settings */}
-        <TabsContent value="general" className="space-y-6">
+        <TabsContent value="general" className="space-y-4 sm:space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>General Settings</CardTitle>
-              <CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">General Settings</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Configure basic application settings
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4 sm:space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="adminEmail">Admin Email</Label>
+                <Label htmlFor="adminEmail" className="text-sm">Admin Email</Label>
                 <Input
                   id="adminEmail"
                   type="email"
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
+                  className="text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
                   Email address for admin notifications and login
@@ -160,13 +237,30 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="defaultPassword">Default Password</Label>
-                <Input
-                  id="defaultPassword"
-                  type="text"
-                  value={defaultPassword}
-                  onChange={(e) => setDefaultPassword(e.target.value)}
-                />
+                <Label htmlFor="defaultPassword" className="text-sm">Default Password</Label>
+                <div className="relative">
+                  <Input
+                    id="defaultPassword"
+                    type={showDefaultPassword ? 'text' : 'password'}
+                    value={defaultPassword}
+                    onChange={(e) => setDefaultPassword(e.target.value)}
+                    className="pr-10 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowDefaultPassword(!showDefaultPassword)}
+                    tabIndex={-1}
+                  >
+                    {showDefaultPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Default password for new accounts
                 </p>
@@ -175,14 +269,14 @@ export default function SettingsPage() {
               <Separator />
 
               <div className="space-y-2">
-                <Label>Database Connection</Label>
-                <div className="flex items-center gap-4">
+                <Label className="text-sm">Database Connection</Label>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Test your database connection
                     </p>
                   </div>
-                  <Button variant="outline" onClick={handleTestConnection}>
+                  <Button variant="outline" onClick={handleTestConnection} size="sm" className="w-full sm:w-auto">
                     <Database className="mr-2 h-4 w-4" />
                     Test Connection
                   </Button>
@@ -193,23 +287,23 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Security Settings */}
-        <TabsContent value="security" className="space-y-6">
+        <TabsContent value="security" className="space-y-4 sm:space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
-              <CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Security Settings</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Manage your account security
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4 sm:space-y-6">
               <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
                     <Key className="mr-2 h-4 w-4" />
-                    Change Password
+                    Change Admin Password
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="w-[95vw] max-w-md">
                   <DialogHeader>
                     <DialogTitle>Change Password</DialogTitle>
                     <DialogDescription>
@@ -219,9 +313,8 @@ export default function SettingsPage() {
                   <form onSubmit={handleChangePassword} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="current">Current Password</Label>
-                      <Input
+                      <PasswordInput
                         id="current"
-                        type="password"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         required
@@ -229,9 +322,8 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="new">New Password</Label>
-                      <Input
+                      <PasswordInput
                         id="new"
-                        type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         required
@@ -239,20 +331,26 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirm">Confirm New Password</Label>
-                      <Input
+                      <PasswordInput
                         id="confirm"
-                        type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
                       />
                     </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setShowChangePassword(false)}>
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                      <Button type="button" variant="outline" onClick={() => setShowChangePassword(false)} className="w-full sm:w-auto">
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={isSaving}>
-                        {isSaving ? 'Changing...' : 'Change Password'}
+                      <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Changing...
+                          </>
+                        ) : (
+                          'Change Password'
+                        )}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -261,7 +359,7 @@ export default function SettingsPage() {
 
               <Alert>
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
+                <AlertDescription className="text-xs sm:text-sm">
                   Use a strong password that you don't use elsewhere
                 </AlertDescription>
               </Alert>
@@ -270,17 +368,17 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Automation Settings */}
-        <TabsContent value="automation" className="space-y-6">
+        <TabsContent value="automation" className="space-y-4 sm:space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Automation Settings</CardTitle>
-              <CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Automation Settings</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Configure login automation behavior
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4 sm:space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="delay">Delay Between Logins (ms)</Label>
+                <Label htmlFor="delay" className="text-sm">Delay Between Logins (ms)</Label>
                 <Input
                   id="delay"
                   type="number"
@@ -289,6 +387,7 @@ export default function SettingsPage() {
                   min="1000"
                   max="10000"
                   step="500"
+                  className="text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
                   Time to wait between each login attempt (1000ms = 1 second)
@@ -296,9 +395,9 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="retries">Max Retries</Label>
+                <Label htmlFor="retries" className="text-sm">Max Retries</Label>
                 <Select value={maxRetries} onValueChange={setMaxRetries}>
-                  <SelectTrigger>
+                  <SelectTrigger className="text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -311,10 +410,10 @@ export default function SettingsPage() {
 
               <Separator />
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Auto Retry Failed Logins</Label>
-                  <p className="text-sm text-muted-foreground">
+              <div className="flex flex-row items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm">Auto Retry Failed Logins</Label>
+                  <p className="text-xs text-muted-foreground">
                     Automatically retry failed login attempts
                   </p>
                 </div>
@@ -323,53 +422,22 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* Notification Settings */}
-        <TabsContent value="notifications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Settings</CardTitle>
-              <CardDescription>
-                Configure when you receive notifications
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Enable Notifications</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receive notifications for important events
-                  </p>
-                </div>
-                <Switch checked={notifications} onCheckedChange={setNotifications} />
-              </div>
-
-              {notifications && (
-                <>
-                  <Separator />
-                  <Alert>
-                    <CheckCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      You will receive notifications for:
-                      <ul className="list-disc list-inside mt-2 text-sm">
-                        <li>Failed login attempts</li>
-                        <li>Password update required</li>
-                        <li>Automation completion</li>
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button onClick={handleSaveGeneral} disabled={isSaving}>
-          <Save className="mr-2 h-4 w-4" />
-          {isSaving ? 'Saving...' : 'Save All Settings'}
+        <Button onClick={handleSaveAllSettings} disabled={isSaving} size="sm" className="w-full sm:w-auto">
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              Save All Settings
+            </>
+          )}
         </Button>
       </div>
     </div>
