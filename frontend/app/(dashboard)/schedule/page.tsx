@@ -280,7 +280,7 @@ export default function SchedulePage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="col-span-2 lg:col-span-1">
+                <Card className="col-span-1">
                   <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
                     <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                       Needs Password
