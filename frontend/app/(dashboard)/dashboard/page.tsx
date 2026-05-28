@@ -76,7 +76,6 @@ export default function DashboardPage() {
 
       const accounts = await res.json()
       
-      // Calculate stats
       const uniqueStores = new Set(accounts.map((a: any) => a.storeName)).size
       
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -93,7 +92,6 @@ export default function DashboardPage() {
         todayLogins: todayAccountsList.length
       })
 
-      // Recent activity
       const recent = accounts
         .filter((a: any) => a.lastLogin)
         .sort((a: any, b: any) => new Date(b.lastLogin).getTime() - new Date(a.lastLogin).getTime())
@@ -116,44 +114,47 @@ export default function DashboardPage() {
       value: stats.total,
       icon: Users,
       color: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-      borderColor: 'border-blue-200 dark:border-blue-800'
     },
     {
-      title: 'Successful Logins',
+      title: 'Successful',
       value: stats.success,
       icon: CheckCircle,
       color: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
-      borderColor: 'border-green-200 dark:border-green-800'
     },
     {
-      title: 'Failed Logins',
+      title: 'Failed',
       value: stats.failed,
       icon: XCircle,
       color: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
-      borderColor: 'border-red-200 dark:border-red-800'
     },
     {
       title: 'Needs Password',
       value: stats.needsPassword,
       icon: AlertTriangle,
       color: 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
-      borderColor: 'border-orange-200 dark:border-orange-800'
     },
     {
       title: 'Unique Stores',
       value: stats.uniqueStores,
       icon: Store,
       color: 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300',
-      borderColor: 'border-purple-200 dark:border-purple-800'
     },
     {
       title: 'Today\'s Schedule',
       value: stats.todayLogins,
       icon: Calendar,
       color: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300',
-      borderColor: 'border-cyan-200 dark:border-cyan-800'
-    }
+    },
   ]
+
+  // Updated: Returns "March 24, 2026 - 10:00 AM" format
+  const formatDateTime = (date: string | null) => {
+    if (!date) return 'Never'
+    const d = new Date(date)
+    const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' }
+    const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: true }
+    return `${d.toLocaleDateString('en-US', dateOptions)} - ${d.toLocaleTimeString('en-US', timeOptions)}`
+  }
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
@@ -169,13 +170,13 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
+        <div className="flex items-center justify-between">
           <Skeleton className="h-9 w-48" />
-          <Skeleton className="h-5 w-96 mt-2" />
+          <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-lg" />
+            <Skeleton key={i} className="h-20 rounded-lg" />
           ))}
         </div>
       </div>
@@ -197,31 +198,43 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-2">
-          Overview of your login automation system
-        </p>
+    <div className="space-y-6">
+      {/* Header with actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Overview of your login automation system
+          </p>
+        </div>
+        <div className="flex gap-2 self-end sm:self-auto">
+          <Button variant="outline" onClick={() => window.location.href = '/accounts'}>
+            <Users className="mr-2 h-4 w-4" />
+            Manage Accounts
+          </Button>
+          <Button variant="outline" onClick={fetchDashboardData}>
+            <Clock className="mr-2 h-4 w-4" />
+            Refresh Data
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {statCards.map((stat) => (
-          <Card key={stat.title} className={`border-l-4 ${stat.borderColor}`}>
-            <CardHeader className="pb-2">
+          <Card key={stat.title}>
+            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${stat.color}`}>
-                  <stat.icon className="h-4 w-4" />
+                <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
+                <div className={`p-1.5 rounded-lg ${stat.color}`}>
+                  <stat.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{stat.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -254,7 +267,7 @@ export default function DashboardPage() {
                     <div className="text-right">
                       {getStatusBadge(account.status)}
                       <p className="text-xs text-muted-foreground mt-1">
-                        {account.lastLogin ? new Date(account.lastLogin).toLocaleString() : 'Never'}
+                        {formatDateTime(account.lastLogin)}
                       </p>
                     </div>
                   </div>
@@ -303,23 +316,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="flex gap-4">
-          <Button onClick={() => window.location.href = '/accounts'}>
-            <Users className="mr-2 h-4 w-4" />
-            Manage Accounts
-          </Button>
-          <Button variant="outline" onClick={fetchDashboardData}>
-            <Clock className="mr-2 h-4 w-4" />
-            Refresh Data
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   )
 }

@@ -219,3 +219,105 @@ export function isSuccessfulThisWeek(lastLogin: string | null): boolean {
   
   return lastLoginDate >= startOfWeek
 }
+
+// Save a weekly report snapshot
+export async function saveWeeklyReport(report: {
+  week_start: string;
+  week_end: string;
+  total: number;
+  successful: number;
+  failed: number;
+  pending: number;
+  needsPassword: number;
+  byDay: Record<string, { total: number; success: number; failed: number }>;
+}) {
+  const { error } = await supabase
+    .from('weekly_reports')
+    .insert({
+      week_start: report.week_start,
+      week_end: report.week_end,
+      total: report.total,
+      successful: report.successful,
+      failed: report.failed,
+      pending: report.pending,
+      needs_password: report.needsPassword,
+      by_day: report.byDay,
+      created_at: new Date().toISOString()
+    });
+  
+  if (error) {
+    console.error('Failed to save weekly report:', error);
+    return false;
+  }
+  return true;
+}
+
+// Get list of saved reports
+export async function getWeeklyReportHistory() {
+  const { data, error } = await supabase
+    .from('weekly_reports')
+    .select('id, week_start, week_end, total, successful, failed, pending, needs_password, created_at')
+    .order('week_start', { ascending: false })
+    .limit(20);
+  
+  if (error) return [];
+  return data;
+}
+
+// Get a specific report by ID
+export async function getWeeklyReportById(id: string) {
+  const { data, error } = await supabase
+    .from('weekly_reports')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) return null;
+  return data;
+}
+
+export async function generateWeeklyReportForRange(startDate: string, endDate: string) {
+  // Fetch accounts as they existed at that time? We can't time travel, so we use current account list
+  // but filter login_logs for that week. For a snapshot, we rely on the login_logs from that period.
+  const { data: logs } = await supabase
+    .from('login_logs')
+    .select('*')
+    .gte('created_at', startDate)
+    .lte('created_at', endDate + 'T23:59:59');
+  
+  const { data: accounts } = await supabase.from('accounts').select('*');
+  
+  const byDay: Record<string, { total: number; success: number; failed: number }> = {};
+  ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].forEach(day => {
+    byDay[day] = { total: 0, success: 0, failed: 0 };
+  });
+  
+  let successful = 0, failed = 0, pending = 0, needsPassword = 0;
+  
+  accounts?.forEach(account => {
+    const day = account.login_day;
+    if (byDay[day]) byDay[day].total++;
+    
+    const accountLogs = logs?.filter(l => l.account_id === account.id) || [];
+    const hasSuccess = accountLogs.some(l => l.status === 'success');
+    
+    if (hasSuccess) {
+      successful++;
+      if (byDay[day]) byDay[day].success++;
+    } else if (accountLogs.length > 0) {
+      failed++;
+      if (byDay[day]) byDay[day].failed++;
+    } else {
+      pending++;
+    }
+  });
+  
+  return {
+    total: accounts?.length || 0,
+    successful,
+    failed,
+    pending,
+    needsPassword: accounts?.filter(a => a.status === 'needs_password_update').length || 0,
+    byDay
+  };
+}

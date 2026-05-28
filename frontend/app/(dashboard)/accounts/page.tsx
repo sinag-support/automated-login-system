@@ -354,15 +354,15 @@ export default function AccountsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Accounts</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl font-bold tracking-tight">Accounts</h1>
+          <p className="text-muted-foreground text-sm mt-2">
             Manage your store accounts and login schedules
           </p>
         </div>
         <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mx-2 h-4 w-4" />
               Add Account
             </Button>
           </DialogTrigger>
@@ -431,7 +431,7 @@ export default function AccountsPage() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
+          <CardTitle className="text-md flex items-center gap-2">
             <Filter className="h-4 w-4" />
             Filters
             {hasActiveFilters && (
@@ -451,20 +451,23 @@ export default function AccountsPage() {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search by mobile or store name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+        <CardContent className="space-y-3">
+          {/* Search bar – full width on its own line */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by mobile or store name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Day & Status filters in a single row */}
+          <div className="flex gap-2">
             <Select value={filterLoginDay} onValueChange={setFilterLoginDay}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Login Day" />
               </SelectTrigger>
               <SelectContent>
@@ -474,8 +477,9 @@ export default function AccountsPage() {
                 ))}
               </SelectContent>
             </Select>
+
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>

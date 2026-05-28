@@ -10,7 +10,11 @@ import {
   getSettings,
   isSuccessfulThisWeek,
   generateWeeklyReport,
-  getAccountWeeklyStatus
+  getAccountWeeklyStatus,
+  generateWeeklyReportForRange,
+  saveWeeklyReport,
+  getWeeklyReportById,
+  getWeeklyReportHistory
 } from './db'
 
 const app = express()
@@ -236,6 +240,59 @@ app.get('/status', authMiddleware, async (req: Request, res: Response) => {
   })
 })
 
+// Save current week's report (called by cron)
+app.post('/report/save-weekly', authMiddleware, async (req, res) => {
+  try {
+    // Calculate the week that just ended
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday
+    // If today is Sunday, the week just ended is the previous Monday-Saturday
+    // If today is Monday-Saturday, we shouldn't save yet – but the cron will only call this on Sunday
+    const weekEnd = new Date(today);
+    weekEnd.setDate(today.getDate() - (dayOfWeek === 0 ? 1 : dayOfWeek + 1)); // Saturday
+    const weekStart = new Date(weekEnd);
+    weekStart.setDate(weekEnd.getDate() - 5); // Monday
+    
+    const startStr = weekStart.toISOString().split('T')[0];
+    const endStr = weekEnd.toISOString().split('T')[0];
+    
+    // Generate report for that week
+    const report = await generateWeeklyReportForRange(startStr, endStr);
+    
+    await saveWeeklyReport({
+      week_start: startStr,
+      week_end: endStr,
+      ...report
+    });
+    
+    console.log(`📅 Weekly report saved for ${startStr} - ${endStr}`);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get report history list
+app.get('/report/history', authMiddleware, async (req, res) => {
+  try {
+    const history = await getWeeklyReportHistory();
+    res.json(history);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get a specific historical report
+app.get('/report/history/:id', authMiddleware, async (req, res) => {
+  try {
+    const report = await getWeeklyReportById(req.params.id);
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+    res.json(report);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Schedule cron job (8 AM Monday-Saturday)
 cron.schedule('0 8 * * 1-6', () => {
   console.log('⏰ Running scheduled automation...')
@@ -243,6 +300,27 @@ cron.schedule('0 8 * * 1-6', () => {
 }, {
   timezone: 'Asia/Manila'
 })
+
+// Save last week's report every Sunday at 12:05 AM
+cron.schedule('5 0 * * 0', async () => {
+  console.log('📅 Saving weekly report...');
+  try {
+    // Call the save endpoint internally
+    const response = await fetch(`http://localhost:${PORT}/report/save-weekly`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY }
+    });
+    if (response.ok) {
+      console.log('✅ Weekly report saved');
+    } else {
+      console.error('❌ Failed to save weekly report');
+    }
+  } catch (error) {
+    console.error('❌ Error saving weekly report:', error);
+  }
+}, {
+  timezone: 'Asia/Manila'
+});
 
 // Weekly reset (Monday 12:01 AM)
 cron.schedule('1 0 * * 1', async () => {
