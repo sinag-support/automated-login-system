@@ -208,13 +208,13 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex gap-2 self-end sm:self-auto">
-          <Button variant="outline" onClick={() => window.location.href = '/accounts'}>
+          <Button onClick={() => window.location.href = '/accounts'}>
             <Users className="mr-2 h-4 w-4" />
             Manage Accounts
           </Button>
           <Button variant="outline" onClick={fetchDashboardData}>
             <Clock className="mr-2 h-4 w-4" />
-            Refresh Data
+            Refresh
           </Button>
         </div>
       </div>

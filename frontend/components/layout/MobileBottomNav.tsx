@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Users, Calendar, BarChart3, Settings } from "lucide-react"
+import { Home, Users, Calendar, BarChart3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const mobileNavItems = [
@@ -10,7 +10,6 @@ const mobileNavItems = [
   { name: "Accounts", href: "/accounts", icon: Users },
   { name: "Schedule", href: "/schedule", icon: Calendar },
   { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 export function MobileBottomNav() {
@@ -20,7 +19,9 @@ export function MobileBottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background safe-area-inset-bottom">
       <div className="flex h-16 items-center justify-around px-2">
         {mobileNavItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/dashboard" && pathname.startsWith(item.href))
           return (
             <Link
               key={item.href}

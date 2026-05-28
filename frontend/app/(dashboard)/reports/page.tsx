@@ -352,7 +352,7 @@ export default function ReportsPage() {
 
       {/* Progress Bar */}
       <Card>
-        <CardHeader className="p-4 sm:p-6">
+        <CardHeader className="px-4 sm:px-6">
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
             Weekly Progress
@@ -362,7 +362,7 @@ export default function ReportsPage() {
             {!isCurrentWeek && ` (${selectedWeek})`}
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+        <CardContent className="px-4 sm:px-6 pt-0 sm:pt-0">
           <Progress value={completionPercentage} className="h-3" />
           <p className="text-sm text-muted-foreground mt-2 text-center">
             {completionPercentage}% Complete

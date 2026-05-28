@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator'
 import { AppBreadcrumb } from './AppBreadcrumb'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
-import { Search, LogOut, User } from 'lucide-react'
+import { Search, LogOut, Settings } from 'lucide-react'  // <-- Settings imported
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -54,7 +54,7 @@ export function AppHeader({ isMobile = false }: AppHeaderProps) {
         </form>
         <ThemeToggle />
 
-        {/* Profile Dropdown */}
+        {/* Profile Dropdown – now includes Settings for everyone */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
@@ -78,6 +78,10 @@ export function AppHeader({ isMobile = false }: AppHeaderProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => router.push('/settings')}>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleLogout} className="text-destructive">
               <LogOut className="mr-2 h-4 w-4" />
               Logout
