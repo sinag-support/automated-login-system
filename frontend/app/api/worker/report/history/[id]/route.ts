@@ -16,7 +16,13 @@ export async function GET(
 
     const res = await fetch(`${workerUrl}/report/history/${id}`, {
       headers: { 'x-api-key': apiKey },
+      signal: AbortSignal.timeout(10000),
     })
+
+    const contentType = res.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      return NextResponse.json({ error: 'Invalid response from worker' }, { status: 502 })
+    }
 
     if (!res.ok) {
       return NextResponse.json({ error: 'Report not found' }, { status: 404 })

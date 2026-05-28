@@ -103,10 +103,16 @@ export default function ReportsPage() {
   const fetchReportHistory = async () => {
     try {
       const res = await fetch('/api/worker/report/history')
+      if (!res.ok) {
+        console.warn('History endpoint not available')
+        setReportHistory([])
+        return
+      }
       const data = await res.json()
-      setReportHistory(data)
+      setReportHistory(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Failed to fetch report history:', error)
+      setReportHistory([]) // Always set empty array on error
     } finally {
       setLoadingHistory(false)
     }
