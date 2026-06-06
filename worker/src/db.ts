@@ -321,3 +321,16 @@ export async function generateWeeklyReportForRange(startDate: string, endDate: s
     byDay
   };
 }
+
+export async function getAccountsByStatus(status: string): Promise<Account[]> {
+  const { data, error } = await supabase
+    .from('accounts')
+    .select('*')
+    .eq('status', status)
+
+  if (error) {
+    console.error(`Failed to fetch accounts with status ${status}:`, error)
+    return []
+  }
+  return data || []
+}
