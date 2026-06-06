@@ -4,15 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 export async function POST(req: NextRequest) {
   try {
     const { day } = await req.json()
-    console.log("URL exists:", !!process.env.SUPABASE_URL);
-console.log("KEY exists:", !!process.env.SUPABASE_SERVICE_KEY);
-
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
-  throw new Error("Missing Supabase environment variables!");
-}
+    
     // Initialize Supabase using the Service Role Key
     const supabase = createClient(
-      process.env.SUPABASE_URL!, 
+      process.env.NEXT_PUBLIC_SUPABASE_URL!, 
       process.env.SUPABASE_SERVICE_KEY!
     )
 
