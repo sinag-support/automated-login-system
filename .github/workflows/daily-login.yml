@@ -1,0 +1,37 @@
+name: Run Daily Login
+on:
+  schedule:
+    # Runs at 08:00 UTC, Mon-Sat
+    - cron: '0 8 * * 1-6'
+  workflow_dispatch: # Allows you to trigger it manually from GitHub
+
+jobs:
+  automation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: worker/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+      
+      - name: Run Automation
+        run: npm run start
+        env:
+          # Map your GitHub Secrets to these environment variables
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          API_KEY: ${{ secrets.API_KEY }}
