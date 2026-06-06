@@ -1,42 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: NextRequest) {
   try {
     const { day } = await req.json()
     
-    const workerUrl = process.env.WORKER_API_URL
-    const apiKey = process.env.WORKER_API_KEY
-
-    if (!workerUrl || !apiKey) {
-      return NextResponse.json(
-        { error: 'Worker configuration missing' },
-        { status: 500 }
-      )
-    }
-
-    const response = await fetch(`${workerUrl}/run-now`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey
-      },
-      body: JSON.stringify({ day })
-    })
-
-    const data = await response.json()
-    
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: data.error || 'Worker error' },
-        { status: response.status }
-      )
-    }
-
-    return NextResponse.json(data)
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
+    // Initialize Supabase using the Service Role Key
+    const supabase = createClient(
+      process.env.SUPABASE_URL!, 
+      process.env.SUPABASE_SERVICE_KEY!
     )
+
+    // Update statuses directly in the database
+    // This removes the need to call the external Render URL
+    const { error } = await supabase
+      .from('accounts')
+      .update({ status: 'pending' })
+      .eq('login_day', day)
+
+    if (error) {
+      console.error("Supabase update error:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ message: `Accounts for ${day} set to pending.` })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
