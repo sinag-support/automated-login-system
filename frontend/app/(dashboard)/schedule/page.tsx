@@ -270,7 +270,7 @@ export default function SchedulePage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 px-2 sm:px-0">
+      <div className="space-y-6">
         <Skeleton className="h-9 w-48" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -283,7 +283,7 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
@@ -338,37 +338,37 @@ export default function SchedulePage() {
             <TabsContent key={day} value={day} className="space-y-4 sm:space-y-6">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
-                  <CardHeader className="p-4 pb-0">
+                  <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                  <CardContent className="px-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
                     <Users className="h-5 w-5 text-blue-600" />
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader className="p-4 pb-0">
+                  <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                  <CardContent className="px-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-green-600">{stats.success}</p>
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader className="p-4 pb-0">
+                  <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                  <CardContent className="px-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-orange-600">{stats.needsPassword}</p>
                     <AlertTriangle className="h-5 w-5 text-orange-600" />
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader className="p-4 pb-0">
+                  <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                  <CardContent className="px-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
                     <Clock className="h-5 w-5 text-amber-600" />
                   </CardContent>
@@ -376,7 +376,7 @@ export default function SchedulePage() {
               </div>
 
               <Card>
-                <CardHeader className="p-4 sm:p-6">
+                <CardHeader className="px-4 sm:p-6">
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                     {day} Accounts ({stats.total})
