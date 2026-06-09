@@ -1,9 +1,15 @@
 name: Run Daily Login
+
 on:
   schedule:
     # Runs at 08:00 UTC, Mon-Sat
     - cron: '0 8 * * 1-6'
-  workflow_dispatch: # Allows you to trigger it manually from GitHub
+  workflow_dispatch:
+    inputs:
+      day:
+        description: 'Day to process (Monday, Tuesday, etc.)'
+        required: true
+        type: string
 
 jobs:
   automation:
@@ -14,24 +20,28 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: worker/package-lock.json
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
-      
+
+      # 👇 ADD THIS STEP – sets TARGET_DAY for scheduled runs
+      - name: Set target day for scheduled run
+        if: github.event_name == 'schedule'
+        run: echo "TARGET_DAY=$(date +'%A')" >> $GITHUB_ENV
+
       - name: Run Automation
         run: npm run start
         env:
-          # Map your GitHub Secrets to these environment variables
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          API_KEY: ${{ secrets.API_KEY }}
+          TARGET_DAY: ${{ env.TARGET_DAY || github.event.inputs.day }}

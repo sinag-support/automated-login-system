@@ -1,54 +1,60 @@
 import 'dotenv/config'
 import { LoginAutomation } from './automation'
-import { updateAccountStatus, createLoginLog, getAccountsByStatus } from './db' // Ensure you have getAccountsByStatus
+import { updateAccountStatus, createLoginLog, getAccountsByStatusAndDay } from './db'
 
 async function processPendingTasks() {
-  console.log("🚀 Starting queued task processor...");
+  const targetDay = process.env.TARGET_DAY
 
-  // 1. Fetch pending accounts directly from DB
-  // Note: Ensure this function exists in your db.ts
-  const pendingAccounts = await getAccountsByStatus('pending');
-
-  if (!pendingAccounts || pendingAccounts.length === 0) {
-    console.log("✅ No pending tasks found. Exiting.");
-    process.exit(0);
+  if (!targetDay) {
+    console.error("❌ TARGET_DAY environment variable not set. Exiting.")
+    process.exit(1)
   }
 
-  console.log(`📋 Found ${pendingAccounts.length} accounts to process.`);
+  console.log(`🎯 Processing accounts for: ${targetDay}`)
 
-  const automation = new LoginAutomation();
-  await automation.initialize();
+  // Fetch pending accounts only for the specified day
+  const pendingAccounts = await getAccountsByStatusAndDay('pending', targetDay)
+
+  if (!pendingAccounts || pendingAccounts.length === 0) {
+    console.log(`✅ No pending accounts for ${targetDay}. Exiting.`)
+    process.exit(0)
+  }
+
+  console.log(`📋 Found ${pendingAccounts.length} accounts to process.`)
+
+  const automation = new LoginAutomation()
+  await automation.initialize()
 
   try {
     for (const account of pendingAccounts) {
-      await LoginAutomation.delay(3000, 7000);
-      console.log(`🔄 Processing: ${account.store_name}`);
-      
+      await LoginAutomation.delay(3000, 7000)
+      console.log(`🔄 Processing: ${account.store_name}`)
+
       try {
-        const password = account.customPassword || account.defaultPassword;
-        const result = await automation.login(account.mobile_number, password);
-        
-        const status = result.success ? 'success' : 'failed';
-        await updateAccountStatus(account.id, status);
-        await createLoginLog(account.id, status, result.error);
-        
-        console.log(`   ${result.success ? '✅ Success' : '❌ Failed'}`);
+        const password = account.customPassword || account.defaultPassword
+        const result = await automation.login(account.mobile_number, password)
+
+        // Use 'needs_password_update' on failure, not 'failed'
+        const status = result.success ? 'success' : 'needs_password_update'
+        await updateAccountStatus(account.id, status, new Date())
+        await createLoginLog(account.id, status, result.error)
+
+        console.log(`   ${result.success ? '✅ Success' : '❌ Failed (needs password update)'}`)
       } catch (err: any) {
-        console.error(`   ❌ Error processing ${account.store_name}:`, err.message);
-        await updateAccountStatus(account.id, 'failed');
+        console.error(`   ❌ Error processing ${account.store_name}:`, err.message)
+        await updateAccountStatus(account.id, 'needs_password_update', new Date())
       }
     }
   } catch (error) {
-    console.error('❌ Critical error during processing:', error);
+    console.error('❌ Critical error during processing:', error)
   } finally {
-    await automation.cleanup();
-    console.log("🏁 All tasks processed. Shutting down.");
-    process.exit(0);
+    await automation.cleanup()
+    console.log("🏁 All tasks processed. Shutting down.")
+    process.exit(0)
   }
 }
 
-// Just run it!
 processPendingTasks().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+  console.error(err)
+  process.exit(1)
+})
