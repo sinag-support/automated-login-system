@@ -9,11 +9,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   Users, 
   CheckCircle, 
-  XCircle, 
   AlertTriangle, 
   Clock,
   TrendingUp,
-  Store,
   Calendar
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -55,7 +53,6 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       const token = localStorage.getItem('token')
-      
       if (!token) {
         setError('No authentication token found')
         setLoading(false)
@@ -66,13 +63,9 @@ export default function DashboardPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`)
-      }
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
 
       const accounts = await res.json()
-      
-      const uniqueStores = new Set(accounts.map((a: any) => a.storeName)).size
       
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
       const today = days[new Date().getDay()]
@@ -94,7 +87,6 @@ export default function DashboardPage() {
       setRecentActivity(recent)
       setTodayAccounts(todayAccountsList.slice(0, 5))
     } catch (error: any) {
-      console.error('Failed to fetch dashboard data:', error)
       setError(error.message)
       toast.error('Failed to load dashboard data')
     } finally {
@@ -102,41 +94,13 @@ export default function DashboardPage() {
     }
   }
 
+  // Updated statCards array for 4 items
   const statCards = [
-    {
-      title: 'Total Accounts',
-      value: stats.total,
-      icon: Users,
-      color: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-    },
-    {
-      title: 'Successful',
-      value: stats.success,
-      icon: CheckCircle,
-      color: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
-    },
-    {
-      title: 'Needs Password',
-      value: stats.needsPassword,
-      icon: AlertTriangle,
-      color: 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
-    },
-    {
-      title: 'Today\'s Schedule',
-      value: stats.todayLogins,
-      icon: Calendar,
-      color: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300',
-    },
+    { title: 'Total Accounts', value: stats.total, icon: Users, color: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' },
+    { title: 'Successful', value: stats.success, icon: CheckCircle, color: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300' },
+    { title: 'Needs Action', value: stats.needsPassword, icon: AlertTriangle, color: 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300' },
+    { title: 'Today\'s Schedule', value: stats.todayLogins, icon: Calendar, color: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300' },
   ]
-
-  // Updated: Returns "March 24, 2026 - 10:00 AM" format
-  const formatDateTime = (date: string | null) => {
-    if (!date) return 'Never'
-    const d = new Date(date)
-    const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' }
-    const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: true }
-    return `${d.toLocaleDateString('en-US', dateOptions)} - ${d.toLocaleTimeString('en-US', timeOptions)}`
-  }
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
@@ -151,70 +115,43 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-9 w-48" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-lg" />
-          ))}
+        <Skeleton className="h-9 w-48" />
+        {/* Adjusted skeleton to match 4-column layout */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
         </div>
       </div>
     )
   }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          Error loading dashboard: {error}
-          <Button variant="link" onClick={fetchDashboardData} className="ml-2 p-0 h-auto">
-            Retry
-          </Button>
-        </AlertDescription>
-      </Alert>
-    )
+  function formatDateTime(lastLogin: string | null): import("react").ReactNode {
+    throw new Error('Function not implemented.')
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            Overview of your login automation system
-          </p>
+          <p className="text-sm text-muted-foreground mt-2">Overview of your login automation system</p>
         </div>
-        <div className="flex gap-2 self-end sm:self-auto">
-          <Button onClick={() => window.location.href = '/accounts'}>
-            <Users className="mr-2 h-4 w-4" />
-            Manage Accounts
-          </Button>
-          <Button variant="outline" onClick={fetchDashboardData}>
-            <Clock className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => window.location.href = '/accounts'}><Users className="mr-2 h-4 w-4" /> Manage</Button>
+          <Button variant="outline" onClick={fetchDashboardData}><Clock className="mr-2 h-4 w-4" /> Refresh</Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      {/* Adjusted grid to 4 columns */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
           <Card key={stat.title}>
-            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
+            <CardHeader className="p-4 pb-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
             </CardHeader>
-            <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
+            <CardContent className="p-4 pt-0">
               <div className="flex items-center justify-between">
-                <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
-                <div className={`p-1.5 rounded-lg ${stat.color}`}>
-                  <stat.icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                </div>
+                <p className="text-2xl font-bold">{stat.value}</p>
+                <div className={`p-2 rounded-lg ${stat.color}`}><stat.icon className="h-5 w-5" /></div>
               </div>
             </CardContent>
           </Card>
