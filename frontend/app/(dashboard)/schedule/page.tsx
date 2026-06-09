@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -48,9 +48,6 @@ interface ScheduleAccount {
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const scheduleDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-// Key for localStorage
-const AUTOMATION_STORAGE_KEY = 'schedule_automation_running'
-
 export default function SchedulePage() {
   const [accounts, setAccounts] = useState<ScheduleAccount[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,16 +63,12 @@ export default function SchedulePage() {
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<ScheduleAccount | null>(null)
   const [assignDay, setAssignDay] = useState('Monday')
-  const [isRefreshing, setIsRefreshing] = useState(false)
-
-  const accountsRef = useRef(accounts)
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    accountsRef.current = accounts
-  }, [accounts])
+    fetchAccounts()
+  }, [])
 
-  const fetchAccounts = useCallback(async () => {
+  const fetchAccounts = async () => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
@@ -95,76 +88,8 @@ export default function SchedulePage() {
       toast.error('Failed to load accounts')
     } finally {
       setLoading(false)
-      setIsRefreshing(false)
     }
-  }, [])
-
-  // Check if there are pending accounts for a given day
-  const hasPendingAccounts = useCallback((day: string) => {
-    return accountsRef.current.some(a => a.loginDay === day && a.status === 'pending')
-  }, [])
-
-  // Start polling – also stores state in localStorage
-  const startPolling = useCallback((day: string) => {
-    // Clear any existing polling
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current)
-      pollIntervalRef.current = null
-    }
-
-    // Save to localStorage that automation is running for this day
-    localStorage.setItem(AUTOMATION_STORAGE_KEY, JSON.stringify({
-      day,
-      startedAt: Date.now()
-    }))
-
-    const poll = async () => {
-      await fetchAccounts()
-      const stillPending = hasPendingAccounts(day)
-      if (!stillPending) {
-        // Automation finished
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current)
-          pollIntervalRef.current = null
-        }
-        localStorage.removeItem(AUTOMATION_STORAGE_KEY)
-        setIsRunning(false)
-        toast.success(`Automation for ${day} completed!`)
-      }
-    }
-
-    pollIntervalRef.current = setInterval(poll, 10000)
-  }, [fetchAccounts, hasPendingAccounts])
-
-  // On mount, check if there's a stored automation that might still be running
-  useEffect(() => {
-    const stored = localStorage.getItem(AUTOMATION_STORAGE_KEY)
-    if (stored) {
-      try {
-        const { day, startedAt } = JSON.parse(stored)
-        // If it's been less than 2 hours (GitHub Action max time) and there are still pending accounts
-        if (Date.now() - startedAt < 2 * 60 * 60 * 1000 && hasPendingAccounts(day)) {
-          setIsRunning(true)
-          startPolling(day)
-          toast.info(`Resuming monitoring for ${day} automation...`)
-        } else {
-          // Stale entry – remove
-          localStorage.removeItem(AUTOMATION_STORAGE_KEY)
-        }
-      } catch (e) {
-        localStorage.removeItem(AUTOMATION_STORAGE_KEY)
-      }
-    }
-  }, [hasPendingAccounts, startPolling])
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-      }
-    }
-  }, [])
+  }
 
   const getDayAccounts = (day: string) => {
     return accounts.filter(a => a.loginDay === day)
@@ -180,6 +105,7 @@ export default function SchedulePage() {
     }
   }
 
+  // Check if ALL accounts for the selected day are 'success'
   const allAccountsSuccess = useMemo(() => {
     const dayAccounts = getDayAccounts(selectedDay)
     return dayAccounts.length > 0 && dayAccounts.every(a => a.status === 'success')
@@ -202,25 +128,19 @@ export default function SchedulePage() {
       if (res.ok) {
         if (data.skippedAll) {
           toast.info(data.message || 'All accounts are already successful – nothing to run.')
-          setIsRunning(false)
         } else {
           toast.success(data.message || `Automation started for ${selectedDay}`)
-          startPolling(selectedDay)
         }
+        // Refresh accounts after a short delay to reflect status changes
+        setTimeout(() => fetchAccounts(), 5000)
       } else {
         toast.error(data.error || 'Failed to start automation')
-        setIsRunning(false)
       }
     } catch (error) {
       toast.error('Failed to trigger automation')
+    } finally {
       setIsRunning(false)
     }
-  }
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    await fetchAccounts()
-    toast.success('Accounts refreshed')
   }
 
   const handleAssignDay = async () => {
@@ -284,43 +204,41 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-2">
             View and manage login schedules by day
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button 
-            onClick={handleRunAutomation} 
-            disabled={isRunning || allAccountsSuccess}
-            title={allAccountsSuccess ? "All accounts are already successful – nothing to run" : ""}
-          >
-            {isRunning ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Automation Running...
-              </>
-            ) : allAccountsSuccess ? (
-              <>
-                <Ban className="mr-2 h-4 w-4" />
-                All Successful
-              </>
-            ) : (
-              <>
-                <Play className="mr-2 h-4 w-4" />
-                Run {selectedDay} Automation
-              </>
-            )}
-          </Button>
-        </div>
       </div>
 
+      <Button 
+        onClick={handleRunAutomation} 
+        disabled={isRunning || allAccountsSuccess}
+        className="w-full sm:w-auto"
+        title={allAccountsSuccess ? "All accounts are already successful – nothing to run" : ""}
+      >
+        {isRunning ? (
+          <>
+            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            Running...
+          </>
+        ) : allAccountsSuccess ? (
+          <>
+            <Ban className="mr-2 h-4 w-4" />
+            All Successful
+          </>
+        ) : (
+          <>
+            <Play className="mr-2 h-4 w-4" />
+            Run {selectedDay} Automation
+          </>
+        )}
+      </Button>
+
+      {/* Day Tabs */}
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           {daysOfWeek.map(day => (
@@ -336,6 +254,7 @@ export default function SchedulePage() {
           
           return (
             <TabsContent key={day} value={day} className="space-y-4 sm:space-y-6">
+              {/* Stats Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="px-4 pb-0">
@@ -346,6 +265,7 @@ export default function SchedulePage() {
                     <Users className="h-5 w-5 text-blue-600" />
                   </CardContent>
                 </Card>
+
                 <Card>
                   <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
@@ -355,6 +275,7 @@ export default function SchedulePage() {
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   </CardContent>
                 </Card>
+
                 <Card>
                   <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
@@ -364,6 +285,7 @@ export default function SchedulePage() {
                     <AlertTriangle className="h-5 w-5 text-orange-600" />
                   </CardContent>
                 </Card>
+
                 <Card>
                   <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
@@ -375,8 +297,9 @@ export default function SchedulePage() {
                 </Card>
               </div>
 
+              {/* Accounts List */}
               <Card>
-                <CardHeader className="px-4 sm:p-6">
+                <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                     {day} Accounts ({stats.total})
@@ -385,7 +308,7 @@ export default function SchedulePage() {
                     Accounts scheduled for login on {day}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                <CardContent>
                   {dayAccounts.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8 text-sm">
                       No accounts scheduled for {day}
@@ -426,6 +349,7 @@ export default function SchedulePage() {
         })}
       </Tabs>
 
+      {/* Assign Day Modal */}
       <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
