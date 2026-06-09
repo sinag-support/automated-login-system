@@ -299,7 +299,7 @@ export default function SchedulePage() {
 
               {/* Accounts List */}
               <Card>
-                <CardHeader className="p-4 sm:p-6">
+                <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                     {day} Accounts ({stats.total})
@@ -308,7 +308,7 @@ export default function SchedulePage() {
                     Accounts scheduled for login on {day}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                <CardContent>
                   {dayAccounts.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8 text-sm">
                       No accounts scheduled for {day}
