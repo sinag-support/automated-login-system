@@ -257,40 +257,40 @@ export default function SchedulePage() {
               {/* Stats Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
-                  <CardHeader className="p-4 pb-0">
+                  <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                  <CardContent className="px-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
                     <Users className="h-5 w-5 text-blue-600" />
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="p-4 pb-0">
+                  <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                  <CardContent className="px-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-green-600">{stats.success}</p>
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="p-4 pb-0">
+                  <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                  <CardContent className="px-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-orange-600">{stats.needsPassword}</p>
                     <AlertTriangle className="h-5 w-5 text-orange-600" />
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="p-4 pb-0">
+                  <CardHeader className="px-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                  <CardContent className="px-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
                     <Clock className="h-5 w-5 text-amber-600" />
                   </CardContent>

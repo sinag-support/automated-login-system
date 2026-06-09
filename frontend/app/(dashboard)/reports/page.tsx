@@ -138,10 +138,10 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportCSV}>
+          <Button onClick={handleExportCSV}>
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
           </Button>
         </div>
@@ -150,40 +150,40 @@ export default function ReportsPage() {
       {/* Stats Cards - EXACTLY matching Dashboard & Schedule */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="p-4 pb-0">
+          <CardHeader className="px-4 pb-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-2 flex justify-between items-center">
+          <CardContent className="px-4 pt-2 flex justify-between items-center">
             <p className="text-2xl font-bold text-blue-600">{total}</p>
             <Users className="h-5 w-5 text-blue-600" />
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="p-4 pb-0">
+          <CardHeader className="px-4 pb-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-2 flex justify-between items-center">
+          <CardContent className="px-4 pt-2 flex justify-between items-center">
             <p className="text-2xl font-bold text-green-600">{successful}</p>
             <CheckCircle className="h-5 w-5 text-green-600" />
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="p-4 pb-0">
+          <CardHeader className="px-4 pb-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-2 flex justify-between items-center">
+          <CardContent className="px-4 pt-2 flex justify-between items-center">
             <p className="text-2xl font-bold text-orange-600">{needsPassword}</p>
             <AlertTriangle className="h-5 w-5 text-orange-600" />
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="p-4 pb-0">
+          <CardHeader className="px-4 pb-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-2 flex justify-between items-center">
+          <CardContent className="px-4 pt-2 flex justify-between items-center">
             <p className="text-2xl font-bold text-amber-600">{pending}</p>
             <Clock className="h-5 w-5 text-amber-600" />
           </CardContent>
@@ -192,13 +192,13 @@ export default function ReportsPage() {
 
       {/* Weekly Progress - now based on status 'success' */}
       <Card>
-        <CardHeader className="p-4 pb-2">
+        <CardHeader className="px-4 pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <TrendingUp className="h-4 w-4" />
             Weekly Progress
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 pt-0">
+        <CardContent className="px-4 pt-0">
           <Progress value={completionPercentage} className="h-2" />
           <p className="text-sm text-center text-muted-foreground mt-2">
             {completionPercentage}% of accounts are marked as Successful
@@ -220,7 +220,7 @@ export default function ReportsPage() {
         {/* Overview Tab - shows status badge (aligned with other pages) */}
         <TabsContent value="overview" className="space-y-4">
           <Card>
-            <CardHeader className="p-4 pb-2">
+            <CardHeader className="px-4 pb-2">
               <CardTitle className="text-base">All Accounts</CardTitle>
               <CardDescription className="text-xs">Current status from database</CardDescription>
             </CardHeader>

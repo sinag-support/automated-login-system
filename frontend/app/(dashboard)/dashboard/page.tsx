@@ -120,8 +120,8 @@ export default function DashboardPage() {
           { title: 'Today\'s Schedule', val: stats.todayLogins, icon: Calendar, color: 'text-cyan-600' },
         ].map((s) => (
           <Card key={s.title}>
-            <CardHeader className="p-4 pb-0"><CardTitle className="text-sm font-medium text-muted-foreground">{s.title}</CardTitle></CardHeader>
-            <CardContent className="p-4 pt-2 flex justify-between items-center">
+            <CardHeader className="px-4 pb-0"><CardTitle className="text-sm font-medium text-muted-foreground">{s.title}</CardTitle></CardHeader>
+            <CardContent className="px-4 pt-2 flex justify-between items-center">
               <p className="text-2xl font-bold">{s.val}</p>
               <s.icon className={`h-5 w-5 ${s.color}`} />
             </CardContent>
