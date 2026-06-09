@@ -80,7 +80,6 @@ const statusOptions = [
   { value: 'All', label: 'All Status' },
   { value: 'pending', label: 'Pending' },
   { value: 'success', label: 'Success' },
-  { value: 'failed', label: 'Failed' },
   { value: 'needs_password_update', label: 'Needs Password' }
 ]
 const ITEMS_PER_PAGE = 20
@@ -301,7 +300,6 @@ export default function AccountsPage() {
     const variants: Record<string, any> = {
       pending: { variant: 'secondary' as const, label: 'Pending' },
       success: { variant: 'default' as const, label: 'Success' },
-      failed: { variant: 'destructive' as const, label: 'Failed' },
       needs_password_update: { variant: 'outline' as const, label: 'Needs Password' }
     }
     const config = variants[status] || { variant: 'secondary' as const, label: status }
@@ -698,7 +696,6 @@ export default function AccountsPage() {
                   <SelectContent>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="success">Success</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
                     <SelectItem value="needs_password_update">Needs Password</SelectItem>
                   </SelectContent>
                 </Select>

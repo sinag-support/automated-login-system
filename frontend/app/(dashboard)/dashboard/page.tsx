@@ -21,10 +21,8 @@ import { toast } from 'sonner'
 interface Stats {
   total: number
   success: number
-  failed: number
   needsPassword: number
   pending: number
-  uniqueStores: number
   todayLogins: number
 }
 
@@ -41,10 +39,8 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({
     total: 0,
     success: 0,
-    failed: 0,
     needsPassword: 0,
     pending: 0,
-    uniqueStores: 0,
     todayLogins: 0
   })
   const [recentActivity, setRecentActivity] = useState<RecentAccount[]>([])
@@ -85,10 +81,8 @@ export default function DashboardPage() {
       setStats({
         total: accounts.length,
         success: accounts.filter((a: any) => a.status === 'success').length,
-        failed: accounts.filter((a: any) => a.status === 'failed').length,
         needsPassword: accounts.filter((a: any) => a.status === 'needs_password_update').length,
         pending: accounts.filter((a: any) => a.status === 'pending').length,
-        uniqueStores,
         todayLogins: todayAccountsList.length
       })
 
@@ -122,22 +116,10 @@ export default function DashboardPage() {
       color: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
     },
     {
-      title: 'Failed',
-      value: stats.failed,
-      icon: XCircle,
-      color: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
-    },
-    {
       title: 'Needs Password',
       value: stats.needsPassword,
       icon: AlertTriangle,
       color: 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
-    },
-    {
-      title: 'Unique Stores',
-      value: stats.uniqueStores,
-      icon: Store,
-      color: 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300',
     },
     {
       title: 'Today\'s Schedule',
@@ -160,7 +142,6 @@ export default function DashboardPage() {
     const variants: Record<string, any> = {
       pending: { variant: 'secondary', label: 'Pending' },
       success: { variant: 'default', label: 'Success' },
-      failed: { variant: 'destructive', label: 'Failed' },
       needs_password_update: { variant: 'outline', label: 'Needs Password' }
     }
     const config = variants[status] || { variant: 'secondary', label: status }
