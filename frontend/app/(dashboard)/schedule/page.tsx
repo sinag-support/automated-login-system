@@ -48,6 +48,9 @@ interface ScheduleAccount {
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const scheduleDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+// Key for localStorage
+const AUTOMATION_STORAGE_KEY = 'schedule_automation_running'
+
 export default function SchedulePage() {
   const [accounts, setAccounts] = useState<ScheduleAccount[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,7 +68,6 @@ export default function SchedulePage() {
   const [assignDay, setAssignDay] = useState('Monday')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Refs for polling and latest accounts
   const accountsRef = useRef(accounts)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -97,9 +99,63 @@ export default function SchedulePage() {
     }
   }, [])
 
+  // Check if there are pending accounts for a given day
+  const hasPendingAccounts = useCallback((day: string) => {
+    return accountsRef.current.some(a => a.loginDay === day && a.status === 'pending')
+  }, [])
+
+  // Start polling – also stores state in localStorage
+  const startPolling = useCallback((day: string) => {
+    // Clear any existing polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+
+    // Save to localStorage that automation is running for this day
+    localStorage.setItem(AUTOMATION_STORAGE_KEY, JSON.stringify({
+      day,
+      startedAt: Date.now()
+    }))
+
+    const poll = async () => {
+      await fetchAccounts()
+      const stillPending = hasPendingAccounts(day)
+      if (!stillPending) {
+        // Automation finished
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current)
+          pollIntervalRef.current = null
+        }
+        localStorage.removeItem(AUTOMATION_STORAGE_KEY)
+        setIsRunning(false)
+        toast.success(`Automation for ${day} completed!`)
+      }
+    }
+
+    pollIntervalRef.current = setInterval(poll, 10000)
+  }, [fetchAccounts, hasPendingAccounts])
+
+  // On mount, check if there's a stored automation that might still be running
   useEffect(() => {
-    fetchAccounts()
-  }, [fetchAccounts])
+    const stored = localStorage.getItem(AUTOMATION_STORAGE_KEY)
+    if (stored) {
+      try {
+        const { day, startedAt } = JSON.parse(stored)
+        // If it's been less than 2 hours (GitHub Action max time) and there are still pending accounts
+        if (Date.now() - startedAt < 2 * 60 * 60 * 1000 && hasPendingAccounts(day)) {
+          setIsRunning(true)
+          startPolling(day)
+          toast.info(`Resuming monitoring for ${day} automation...`)
+        } else {
+          // Stale entry – remove
+          localStorage.removeItem(AUTOMATION_STORAGE_KEY)
+        }
+      } catch (e) {
+        localStorage.removeItem(AUTOMATION_STORAGE_KEY)
+      }
+    }
+  }, [hasPendingAccounts, startPolling])
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -129,32 +185,6 @@ export default function SchedulePage() {
     return dayAccounts.length > 0 && dayAccounts.every(a => a.status === 'success')
   }, [accounts, selectedDay])
 
-  const pollUntilFinished = useCallback(() => {
-    // Clear any existing polling interval
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current)
-      pollIntervalRef.current = null
-    }
-
-    const poll = async () => {
-      await fetchAccounts()
-      const currentAccounts = accountsRef.current
-      const stillPending = currentAccounts.some(
-        a => a.loginDay === selectedDay && a.status === 'pending'
-      )
-      if (!stillPending) {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current)
-          pollIntervalRef.current = null
-        }
-        setIsRunning(false)
-        toast.success(`Automation for ${selectedDay} completed!`)
-      }
-    }
-
-    pollIntervalRef.current = setInterval(poll, 10000)
-  }, [fetchAccounts, selectedDay])
-
   const handleRunAutomation = async () => {
     setIsRunning(true)
     try {
@@ -175,7 +205,7 @@ export default function SchedulePage() {
           setIsRunning(false)
         } else {
           toast.success(data.message || `Automation started for ${selectedDay}`)
-          pollUntilFinished()
+          startPolling(selectedDay)
         }
       } else {
         toast.error(data.error || 'Failed to start automation')
