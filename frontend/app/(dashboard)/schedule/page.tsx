@@ -65,8 +65,10 @@ export default function SchedulePage() {
   const [assignDay, setAssignDay] = useState('Monday')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Ref to store the latest accounts for polling (avoids stale closure)
+  // Refs for polling and latest accounts
   const accountsRef = useRef(accounts)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
   useEffect(() => {
     accountsRef.current = accounts
   }, [accounts])
@@ -99,6 +101,15 @@ export default function SchedulePage() {
     fetchAccounts()
   }, [fetchAccounts])
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+      }
+    }
+  }, [])
+
   const getDayAccounts = (day: string) => {
     return accounts.filter(a => a.loginDay === day)
   }
@@ -113,11 +124,36 @@ export default function SchedulePage() {
     }
   }
 
-  // Check if ALL accounts for the selected day are 'success'
   const allAccountsSuccess = useMemo(() => {
     const dayAccounts = getDayAccounts(selectedDay)
     return dayAccounts.length > 0 && dayAccounts.every(a => a.status === 'success')
   }, [accounts, selectedDay])
+
+  const pollUntilFinished = useCallback(() => {
+    // Clear any existing polling interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+
+    const poll = async () => {
+      await fetchAccounts()
+      const currentAccounts = accountsRef.current
+      const stillPending = currentAccounts.some(
+        a => a.loginDay === selectedDay && a.status === 'pending'
+      )
+      if (!stillPending) {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current)
+          pollIntervalRef.current = null
+        }
+        setIsRunning(false)
+        toast.success(`Automation for ${selectedDay} completed!`)
+      }
+    }
+
+    pollIntervalRef.current = setInterval(poll, 10000)
+  }, [fetchAccounts, selectedDay])
 
   const handleRunAutomation = async () => {
     setIsRunning(true)
@@ -139,7 +175,6 @@ export default function SchedulePage() {
           setIsRunning(false)
         } else {
           toast.success(data.message || `Automation started for ${selectedDay}`)
-          // Start polling for completion
           pollUntilFinished()
         }
       } else {
@@ -151,52 +186,6 @@ export default function SchedulePage() {
       setIsRunning(false)
     }
   }
-
-  const pollUntilFinished = () => {
-    let interval: NodeJS.Timeout | null = null
-
-    const poll = async () => {
-      // Refresh accounts to get latest statuses
-      await fetchAccounts()
-      
-      // Use the ref to get the most recent accounts
-      const currentAccounts = accountsRef.current
-      const stillPending = currentAccounts.some(
-        a => a.loginDay === selectedDay && a.status === 'pending'
-      )
-      
-      if (!stillPending) {
-        // No pending accounts left for this day → automation finished
-        if (interval) clearInterval(interval)
-        setIsRunning(false)
-        toast.success(`Automation for ${selectedDay} completed!`)
-      }
-    }
-
-    // Poll every 10 seconds
-    interval = setInterval(poll, 10000)
-    // Also store interval in a ref to clean up if component unmounts while running
-    const cleanup = () => {
-      if (interval) clearInterval(interval)
-    }
-    // Return cleanup function but we need to attach it to component unmount
-    // We'll use a useEffect to handle that
-    window.__pollCleanup = cleanup  // hack – better: store in a ref
-    // Actually, store the interval in a ref:
-    if (typeof window !== 'undefined') {
-      (window as any).__pollInterval = interval
-    }
-  }
-
-  // Cleanup polling if component unmounts while still running
-  useEffect(() => {
-    return () => {
-      if ((window as any).__pollInterval) {
-        clearInterval((window as any).__pollInterval)
-        delete (window as any).__pollInterval
-      }
-    }
-  }, [])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -265,7 +254,6 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
-      {/* Header with buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
@@ -303,7 +291,6 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* Day Tabs */}
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           {daysOfWeek.map(day => (
@@ -319,7 +306,6 @@ export default function SchedulePage() {
           
           return (
             <TabsContent key={day} value={day} className="space-y-4 sm:space-y-6">
-              {/* Stats Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="p-4 pb-0">
@@ -330,7 +316,6 @@ export default function SchedulePage() {
                     <Users className="h-5 w-5 text-blue-600" />
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
@@ -340,7 +325,6 @@ export default function SchedulePage() {
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
@@ -350,7 +334,6 @@ export default function SchedulePage() {
                     <AlertTriangle className="h-5 w-5 text-orange-600" />
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
@@ -362,7 +345,6 @@ export default function SchedulePage() {
                 </Card>
               </div>
 
-              {/* Accounts List */}
               <Card>
                 <CardHeader className="p-4 sm:p-6">
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -414,7 +396,6 @@ export default function SchedulePage() {
         })}
       </Tabs>
 
-      {/* Assign Day Modal */}
       <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
