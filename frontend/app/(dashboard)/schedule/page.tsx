@@ -102,7 +102,6 @@ export default function SchedulePage() {
     return {
       total: dayAccounts.length,
       success: dayAccounts.filter(a => a.status === 'success').length,
-      failed: dayAccounts.filter(a => a.status === 'failed').length,
       pending: dayAccounts.filter(a => a.status === 'pending').length,
       needsPassword: dayAccounts.filter(a => a.status === 'needs_password_update').length
     }
@@ -164,7 +163,6 @@ export default function SchedulePage() {
     const variants: Record<string, any> = {
       pending: { variant: 'secondary' as const, label: 'Pending' },
       success: { variant: 'default' as const, label: 'Success' },
-      failed: { variant: 'destructive' as const, label: 'Failed' },
       needs_password_update: { variant: 'outline' as const, label: 'Needs Password' }
     }
     const config = variants[status] || { variant: 'secondary' as const, label: status }
@@ -264,19 +262,6 @@ export default function SchedulePage() {
                     <div className="flex items-center justify-between">
                       <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.success}</p>
                       <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                      Failed
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.failed}</p>
-                      <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
                     </div>
                   </CardContent>
                 </Card>
