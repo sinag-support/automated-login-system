@@ -33,6 +33,18 @@ interface AccountStatus {
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+// Unified badge component (matches Dashboard, Accounts, Schedule)
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'success':
+      return <Badge variant="default">Success</Badge>
+    case 'needs_password_update':
+      return <Badge variant="outline" className="border-orange-500 text-orange-600">Needs Password</Badge>
+    default:
+      return <Badge variant="secondary">Pending</Badge>
+  }
+}
+
 export default function ReportsPage() {
   const [accounts, setAccounts] = useState<AccountStatus[]>([])
   const [loading, setLoading] = useState(true)
@@ -112,25 +124,74 @@ export default function ReportsPage() {
     return acc
   }, {} as Record<string, { total: number; success: number; needsPassword: number }>)
 
-  // Weekly progress based on status 'success' (aligns with stat card)
+  // Weekly progress based on status 'success'
   const completionPercentage = total === 0 ? 0 : Math.round((successful / total) * 100)
 
-  if (loading) return (
-    <div className="space-y-6">
-      <Skeleton className="h-9 w-48" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-24" />
-        ))}
+  // Realistic loading skeleton
+  if (loading) {
+    return (
+      <div className="space-y-6 px-2 sm:px-0">
+        {/* Header skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-4 w-64 mt-1" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </div>
+
+        {/* Stats cards skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+
+        {/* Weekly progress card skeleton */}
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <Skeleton className="h-5 w-32" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <Skeleton className="h-2 w-full" />
+            <Skeleton className="h-4 w-48 mx-auto mt-2" />
+          </CardContent>
+        </Card>
+
+        {/* Tabs skeleton */}
+        <Skeleton className="h-10 w-full" />
+
+        {/* Overview tab skeleton (default) */}
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-3 w-40 mt-1" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div>
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24 mt-1" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-16" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
-      <Skeleton className="h-32" />
-      <Skeleton className="h-96" />
-    </div>
-  )
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header - same as Dashboard */}
+    <div className="space-y-6 px-2 sm:px-0">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
@@ -148,58 +209,57 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Stats Cards - EXACTLY matching Dashboard & Schedule */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="px-4 pb-0">
+          <CardHeader className="p-4 pb-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pt-2 flex justify-between items-center">
+          <CardContent className="p-4 pt-2 flex justify-between items-center">
             <p className="text-2xl font-bold text-blue-600">{total}</p>
             <Users className="h-5 w-5 text-blue-600" />
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="px-4 pb-0">
+          <CardHeader className="p-4 pb-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pt-2 flex justify-between items-center">
+          <CardContent className="p-4 pt-2 flex justify-between items-center">
             <p className="text-2xl font-bold text-green-600">{successful}</p>
             <CheckCircle className="h-5 w-5 text-green-600" />
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="px-4 pb-0">
+          <CardHeader className="p-4 pb-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pt-2 flex justify-between items-center">
+          <CardContent className="p-4 pt-2 flex justify-between items-center">
             <p className="text-2xl font-bold text-orange-600">{needsPassword}</p>
             <AlertTriangle className="h-5 w-5 text-orange-600" />
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="px-4 pb-0">
+          <CardHeader className="p-4 pb-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pt-2 flex justify-between items-center">
+          <CardContent className="p-4 pt-2 flex justify-between items-center">
             <p className="text-2xl font-bold text-amber-600">{pending}</p>
             <Clock className="h-5 w-5 text-amber-600" />
           </CardContent>
         </Card>
       </div>
 
-      {/* Weekly Progress - now based on status 'success' */}
+      {/* Weekly Progress */}
       <Card>
-        <CardHeader className="px-4 pb-2">
+        <CardHeader className="p-4 pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="h-4 w-4" />
-            Weekly Progress
+            <TrendingUp className="h-4 w-4" /> Weekly Progress
           </CardTitle>
         </CardHeader>
-        <CardContent className="px-4 pt-0">
+        <CardContent className="p-4 pt-0">
           <Progress value={completionPercentage} className="h-2" />
           <p className="text-sm text-center text-muted-foreground mt-2">
             {completionPercentage}% of accounts are marked as Successful
@@ -218,7 +278,7 @@ export default function ReportsPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab - shows status badge (aligned with other pages) */}
+        {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
           <Card>
             <CardHeader className="p-4 pb-2">
@@ -230,7 +290,7 @@ export default function ReportsPage() {
                 <p className="text-center text-muted-foreground py-8 text-sm">No accounts found</p>
               ) : (
                 accounts.map((acc) => (
-                  <div key={acc.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-2 hover:bg-muted/50 transition-colors">
+                  <div key={acc.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors gap-2">
                     <div className="flex items-center gap-3">
                       <Store className="h-5 w-5 text-primary" />
                       <div>
@@ -238,13 +298,7 @@ export default function ReportsPage() {
                         <p className="text-xs text-muted-foreground">{acc.mobileNumber}</p>
                       </div>
                     </div>
-                    {acc.status === 'success' ? (
-                      <Badge variant="default">Success</Badge>
-                    ) : acc.status === 'needs_password_update' ? (
-                      <Badge variant="outline" className="border-orange-500 text-orange-600">Needs Password</Badge>
-                    ) : (
-                      <Badge variant="secondary">Pending</Badge>
-                    )}
+                    {getStatusBadge(acc.status)}
                   </div>
                 ))
               )}
@@ -252,7 +306,7 @@ export default function ReportsPage() {
           </Card>
         </TabsContent>
 
-        {/* By Day Tab - now shows success and needsPassword counts from status */}
+        {/* By Day Tab */}
         <TabsContent value="by-day">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {daysOfWeek.map(day => (

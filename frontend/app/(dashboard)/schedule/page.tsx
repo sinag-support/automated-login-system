@@ -48,6 +48,18 @@ interface ScheduleAccount {
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const scheduleDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+// Unified badge component (matches Dashboard, Accounts, Reports)
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'success':
+      return <Badge variant="default">Success</Badge>
+    case 'needs_password_update':
+      return <Badge variant="outline" className="border-orange-500 text-orange-600">Needs Password</Badge>
+    default:
+      return <Badge variant="secondary">Pending</Badge>
+  }
+}
+
 export default function SchedulePage() {
   const [accounts, setAccounts] = useState<ScheduleAccount[]>([])
   const [loading, setLoading] = useState(true)
@@ -169,16 +181,12 @@ export default function SchedulePage() {
       if (res.ok) {
         if (data.skippedAll) {
           toast.info(data.message || 'All accounts are already successful – nothing to run.')
-          // No workflow was started, so global state should still be false
           setGlobalWorkflowRunning(false)
         } else {
           toast.success(data.message || `Automation started for ${selectedDay}`)
-          // Immediately assume it's running (optimistic)
           setGlobalWorkflowRunning(true)
           setRunningDay(selectedDay)
-          // Polling will update the actual status soon
         }
-        // Refresh accounts after a short delay
         setTimeout(() => fetchAccounts(), 5000)
       } else {
         toast.error(data.error || 'Failed to start automation')
@@ -217,16 +225,6 @@ export default function SchedulePage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, any> = {
-      pending: { variant: 'secondary' as const, label: 'Pending' },
-      success: { variant: 'default' as const, label: 'Success' },
-      needs_password_update: { variant: 'outline' as const, label: 'Needs Password' }
-    }
-    const config = variants[status] || { variant: 'secondary' as const, label: status }
-    return <Badge variant={config.variant}>{config.label}</Badge>
-  }
-
   const formatMobileNumber = (number: string): string => {
     const cleaned = number.replace(/\D/g, '')
     if (cleaned.startsWith('63') && cleaned.length === 12) {
@@ -235,27 +233,67 @@ export default function SchedulePage() {
     return number
   }
 
+  // Realistic loading skeleton
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-9 w-48" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="space-y-6 px-2 sm:px-0">
+        {/* Header skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-4 w-64 mt-1" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+
+        {/* Tabs skeleton */}
+        <Skeleton className="h-10 w-full" />
+
+        {/* Stats cards skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
-        <Skeleton className="h-64" />
+
+        {/* Accounts list skeleton */}
+        <Card>
+          <CardHeader className="p-4">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-48 mt-1" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div>
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24 mt-1" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-6 w-16" />
+                  <Skeleton className="h-6 w-16" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-sm text-muted-foreground mt-1">
             View and manage login schedules by day
           </p>
         </div>
@@ -366,7 +404,7 @@ export default function SchedulePage() {
                   ) : (
                     <div className="space-y-2 sm:space-y-3">
                       {dayAccounts.map((account) => (
-                        <div key={account.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-2">
+                        <div key={account.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors gap-2">
                           <div className="flex items-center gap-2 sm:gap-3">
                             <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                               <Store className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />

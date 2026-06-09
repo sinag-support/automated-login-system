@@ -35,7 +35,6 @@ import {
   Key,
   Save,
   AlertCircle,
-  CheckCircle,
   Loader2,
   Eye,
   EyeOff
@@ -172,32 +171,65 @@ export default function SettingsPage() {
     )
   }
 
+  // Realistic loading skeleton
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-9 w-48" />
-        <Skeleton className="h-5 w-96" />
-        <div className="space-y-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
+      <div className="space-y-6 px-2 sm:px-0">
+        {/* Header skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-4 w-64 mt-1" />
+          </div>
+          <Skeleton className="h-10 w-32" />
         </div>
+
+        {/* Tabs skeleton */}
+        <Skeleton className="h-10 w-full" />
+
+        {/* General settings card skeleton */}
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-48 mt-1" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+            <Separator className="my-2" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1 sm:mt-2">
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Manage your application settings and preferences
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleSaveAllSettings} disabled={isSaving} size="sm" className="w-full sm:w-auto">
+          <Button onClick={handleSaveAllSettings} disabled={isSaving}>
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -214,31 +246,31 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-3 h-10 sm:h-9 p-1">
-          <TabsTrigger value="general" className="flex items-center justify-center gap-1.5 sm:gap-2 h-full data-[state=active]:bg-background">
-            <Settings className="h-4 w-4 shrink-0" />
-            <span className="text-xs sm:text-sm font-medium">General</span>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="general" className="flex items-center justify-center gap-2">
+            <Settings className="h-4 w-4" />
+            <span className="text-sm font-medium">General</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center justify-center gap-1.5 sm:gap-2 h-full data-[state=active]:bg-background">
-            <Lock className="h-4 w-4 shrink-0" />
-            <span className="text-xs sm:text-sm font-medium">Security</span>
+          <TabsTrigger value="security" className="flex items-center justify-center gap-2">
+            <Lock className="h-4 w-4" />
+            <span className="text-sm font-medium">Security</span>
           </TabsTrigger>
-          <TabsTrigger value="automation" className="flex items-center justify-center gap-1.5 sm:gap-2 h-full data-[state=active]:bg-background">
-            <Play className="h-4 w-4 shrink-0" />
-            <span className="text-xs sm:text-sm font-medium">Automation</span>
+          <TabsTrigger value="automation" className="flex items-center justify-center gap-2">
+            <Play className="h-4 w-4" />
+            <span className="text-sm font-medium">Automation</span>
           </TabsTrigger>
         </TabsList>
 
         {/* General Settings */}
         <TabsContent value="general" className="space-y-4 sm:space-y-6">
           <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-base sm:text-lg">General Settings</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-base">General Settings</CardTitle>
+              <CardDescription className="text-xs">
                 Configure basic application settings
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4 sm:space-y-6">
+            <CardContent className="p-4 pt-0 space-y-4 sm:space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="adminEmail" className="text-sm">Admin Email</Label>
                 <Input
@@ -289,7 +321,7 @@ export default function SettingsPage() {
                 <Label className="text-sm">Database Connection</Label>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                   <div className="flex-1">
-                    <p className="text-xs sm:text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Test your database connection
                     </p>
                   </div>
@@ -306,13 +338,13 @@ export default function SettingsPage() {
         {/* Security Settings */}
         <TabsContent value="security" className="space-y-4 sm:space-y-6">
           <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-base sm:text-lg">Security Settings</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-base">Security Settings</CardTitle>
+              <CardDescription className="text-xs">
                 Manage your account security
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4 sm:space-y-6">
+            <CardContent className="p-4 pt-0 space-y-4 sm:space-y-6">
               <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" className="w-full sm:w-auto">
@@ -376,7 +408,7 @@ export default function SettingsPage() {
 
               <Alert>
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs sm:text-sm">
+                <AlertDescription className="text-xs">
                   Use a strong password that you don't use elsewhere
                 </AlertDescription>
               </Alert>
@@ -387,13 +419,13 @@ export default function SettingsPage() {
         {/* Automation Settings */}
         <TabsContent value="automation" className="space-y-4 sm:space-y-6">
           <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-base sm:text-lg">Automation Settings</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-base">Automation Settings</CardTitle>
+              <CardDescription className="text-xs">
                 Configure login automation behavior
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4 sm:space-y-6">
+            <CardContent className="p-4 pt-0 space-y-4 sm:space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="delay" className="text-sm">Delay Between Logins (ms)</Label>
                 <Input
