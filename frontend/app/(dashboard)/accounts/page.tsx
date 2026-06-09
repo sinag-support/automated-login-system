@@ -503,7 +503,7 @@ export default function AccountsPage() {
               className="pl-10"
             />
           </div>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex gap-2">
             <Select value={filterLoginDay} onValueChange={setFilterLoginDay}>
               <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Login Day" />
