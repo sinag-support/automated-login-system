@@ -15,7 +15,7 @@ import {
   TrendingUp, 
   RefreshCw, 
   FileText, 
-  XCircle,
+  AlertTriangle,
   Download
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -25,7 +25,7 @@ interface AccountStatus {
   mobileNumber: string
   storeName: string
   loginDay: string
-  status: string
+  status: string          // 'success', 'pending', 'needs_password_update'
   lastLogin: string | null
   loggedThisWeek: boolean
 }
@@ -45,8 +45,12 @@ export default function ReportsPage() {
       })
       const data = await res.json()
 
-      const startOfWeek = new Date()
-      startOfWeek.setDate(startOfWeek.getDate() - (startOfWeek.getDay() === 0 ? 6 : startOfWeek.getDay() - 1))
+      // Calculate start of week (Monday) in local timezone
+      const now = new Date()
+      const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, ...
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+      const startOfWeek = new Date(now)
+      startOfWeek.setDate(now.getDate() - daysToMonday)
       startOfWeek.setHours(0, 0, 0, 0)
 
       const accountsWithStatus = data.map((acc: any) => ({
@@ -91,31 +95,47 @@ export default function ReportsPage() {
     toast.success('Report exported')
   }
 
+  // Use the SAME status counts as Dashboard / Accounts / Schedule
   const total = accounts.length
-  const successful = accounts.filter(a => a.loggedThisWeek).length
+  const successful = accounts.filter(a => a.status === 'success').length
   const needsPassword = accounts.filter(a => a.status === 'needs_password_update').length
-  const pending = accounts.filter(a => !a.loggedThisWeek && a.status !== 'needs_password_update').length
+  const pending = accounts.filter(a => a.status === 'pending').length
   
   const byDay = daysOfWeek.reduce((acc, day) => {
     const dayAccounts = accounts.filter(a => a.loginDay === day)
     acc[day] = {
       total: dayAccounts.length,
-      success: dayAccounts.filter(a => a.loggedThisWeek).length,
-      failed: dayAccounts.filter(a => a.status === 'needs_password_update').length,
+      success: dayAccounts.filter(a => a.status === 'success').length,
+      needsPassword: dayAccounts.filter(a => a.status === 'needs_password_update').length,
     }
     return acc
-  }, {} as Record<string, { total: number; success: number; failed: number }>)
+  }, {} as Record<string, { total: number; success: number; needsPassword: number }>)
 
+  // Weekly progress based on status 'success' (aligns with stat card)
   const completionPercentage = total === 0 ? 0 : Math.round((successful / total) * 100)
 
-  if (loading) return <div className="p-8"><Skeleton className="h-64 w-full" /></div>
+  if (loading) return (
+    <div className="space-y-6 px-2 sm:px-0">
+      <Skeleton className="h-9 w-48" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24" />
+        ))}
+      </div>
+      <Skeleton className="h-32" />
+      <Skeleton className="h-96" />
+    </div>
+  )
 
   return (
-    <div className="space-y-6 pb-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0 pb-6">
+      {/* Header - same as Dashboard */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-          <p className="text-muted-foreground mt-2">Current week live activity</p>
+          <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Current week activity overview
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
@@ -127,58 +147,130 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { title: 'Total', val: total, icon: Users, color: 'text-muted-foreground' },
-          { title: 'Successful', val: successful, icon: CheckCircle, color: 'text-green-600' },
-          { title: 'Needs Pwd', val: needsPassword, icon: XCircle, color: 'text-red-600' },
-          { title: 'Pending', val: pending, icon: Clock, color: 'text-yellow-600' },
-        ].map((stat, i) => (
-          <Card key={i}>
-            <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-medium">{stat.title}</CardTitle></CardHeader>
-            <CardContent className="p-4 pt-0 flex justify-between items-center">
-              <p className={`text-2xl font-bold ${stat.color}`}>{stat.val}</p>
-              <stat.icon className={`h-5 w-5 ${stat.color}`} />
-            </CardContent>
-          </Card>
-        ))}
+      {/* Stats Cards - EXACTLY matching Dashboard & Schedule */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="p-4 pb-0">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2 flex justify-between items-center">
+            <p className="text-2xl font-bold text-blue-600">{total}</p>
+            <Users className="h-5 w-5 text-blue-600" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="p-4 pb-0">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2 flex justify-between items-center">
+            <p className="text-2xl font-bold text-green-600">{successful}</p>
+            <CheckCircle className="h-5 w-5 text-green-600" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="p-4 pb-0">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2 flex justify-between items-center">
+            <p className="text-2xl font-bold text-orange-600">{needsPassword}</p>
+            <AlertTriangle className="h-5 w-5 text-orange-600" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="p-4 pb-0">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2 flex justify-between items-center">
+            <p className="text-2xl font-bold text-amber-600">{pending}</p>
+            <Clock className="h-5 w-5 text-amber-600" />
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Weekly Progress - now based on status 'success' */}
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp /> Weekly Progress</CardTitle></CardHeader>
-        <CardContent>
-          <Progress value={completionPercentage} className="h-3" />
-          <p className="text-sm text-center mt-2">{completionPercentage}% Complete</p>
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <TrendingUp className="h-4 w-4" />
+            Weekly Progress
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <Progress value={completionPercentage} className="h-2" />
+          <p className="text-sm text-center text-muted-foreground mt-2">
+            {completionPercentage}% of accounts are marked as Successful
+          </p>
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="overview">
+      {/* Tabs Section */}
+      <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="overview"><FileText className="mr-2 h-4 w-4" /> Overview</TabsTrigger>
-          <TabsTrigger value="by-day"><Calendar className="mr-2 h-4 w-4" /> By Day</TabsTrigger>
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Overview
+          </TabsTrigger>
+          <TabsTrigger value="by-day" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" /> By Day
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="overview">
+
+        {/* Overview Tab - shows status badge (aligned with other pages) */}
+        <TabsContent value="overview" className="space-y-4">
           <Card>
-            <CardContent className="pt-6 space-y-2">
-              {accounts.map(acc => (
-                <div key={acc.id} className="flex justify-between p-2 border rounded-lg">
-                  <div><p className="font-medium">{acc.storeName}</p><p className="text-xs">{acc.mobileNumber}</p></div>
-                  <Badge variant={acc.loggedThisWeek ? 'default' : acc.status === 'needs_password_update' ? 'destructive' : 'secondary'}>
-                    {acc.loggedThisWeek ? 'Done' : acc.status === 'needs_password_update' ? 'Needs Password' : 'Pending'}
-                  </Badge>
-                </div>
-              ))}
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-base">All Accounts</CardTitle>
+              <CardDescription className="text-xs">Current status from database</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+              {accounts.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8 text-sm">No accounts found</p>
+              ) : (
+                accounts.map((acc) => {
+                  // Same badge logic as Dashboard / Schedule
+                  const getStatusBadge = () => {
+                    if (acc.status === 'success') return <Badge variant="default">Success</Badge>
+                    if (acc.status === 'needs_password_update') return <Badge variant="outline" className="border-orange-500 text-orange-600">Needs Password</Badge>
+                    return <Badge variant="secondary">Pending</Badge>
+                  }
+                  return (
+                    <div key={acc.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-3 gap-2">
+                      <div>
+                        <p className="font-medium">{acc.storeName}</p>
+                        <p className="text-xs text-muted-foreground">{acc.mobileNumber}</p>
+                      </div>
+                      {getStatusBadge()}
+                    </div>
+                  )
+                })
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* By Day Tab - now shows success and needsPassword counts from status */}
         <TabsContent value="by-day">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {daysOfWeek.map(day => (
               <Card key={day}>
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">{day}</CardTitle></CardHeader>
-                <CardContent className="p-4 text-xs space-y-1">
-                  <div className="flex justify-between"><span>Success</span><span className="text-green-600">{byDay[day].success}</span></div>
-                  <div className="flex justify-between"><span>Failed</span><span className="text-red-600">{byDay[day].failed}</span></div>
+                <CardHeader className="p-4 pb-2">
+                  <CardTitle className="text-sm font-medium">{day}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 text-sm">
+                  <div className="flex justify-between py-1">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-medium">{byDay[day].total}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-muted-foreground">Successful</span>
+                    <span className="text-green-600 font-medium">{byDay[day].success}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-muted-foreground">Needs Password</span>
+                    <span className="text-orange-600 font-medium">{byDay[day].needsPassword}</span>
+                  </div>
                 </CardContent>
               </Card>
             ))}

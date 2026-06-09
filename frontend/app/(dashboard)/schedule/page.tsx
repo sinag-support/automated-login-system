@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -29,11 +29,10 @@ import {
   Store, 
   Phone,
   CheckCircle,
-  XCircle,
   AlertTriangle,
   Play,
   RefreshCw,
-  CalendarPlus
+  Ban
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -72,7 +71,6 @@ export default function SchedulePage() {
   const fetchAccounts = async () => {
     try {
       const token = localStorage.getItem('token')
-      
       if (!token) {
         toast.error('Please log in again')
         return
@@ -107,6 +105,12 @@ export default function SchedulePage() {
     }
   }
 
+  // Check if ALL accounts for the selected day are 'success'
+  const allAccountsSuccess = useMemo(() => {
+    const dayAccounts = getDayAccounts(selectedDay)
+    return dayAccounts.length > 0 && dayAccounts.every(a => a.status === 'success')
+  }, [accounts, selectedDay])
+
   const handleRunAutomation = async () => {
     setIsRunning(true)
     try {
@@ -119,11 +123,18 @@ export default function SchedulePage() {
         body: JSON.stringify({ day: selectedDay })
       })
 
+      const data = await res.json()
+
       if (res.ok) {
-        toast.success(`Automation started for ${selectedDay}`)
+        if (data.skippedAll) {
+          toast.info(data.message || 'All accounts are already successful – nothing to run.')
+        } else {
+          toast.success(data.message || `Automation started for ${selectedDay}`)
+        }
+        // Refresh accounts after a short delay to reflect status changes
         setTimeout(() => fetchAccounts(), 5000)
       } else {
-        toast.error('Failed to start automation')
+        toast.error(data.error || 'Failed to start automation')
       }
     } catch (error) {
       toast.error('Failed to trigger automation')
@@ -205,13 +216,19 @@ export default function SchedulePage() {
 
       <Button 
         onClick={handleRunAutomation} 
-        disabled={isRunning}
+        disabled={isRunning || allAccountsSuccess}
         className="w-full sm:w-auto"
+        title={allAccountsSuccess ? "All accounts are already successful – nothing to run" : ""}
       >
         {isRunning ? (
           <>
             <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
             Running...
+          </>
+        ) : allAccountsSuccess ? (
+          <>
+            <Ban className="mr-2 h-4 w-4" />
+            All Successful
           </>
         ) : (
           <>
@@ -238,44 +255,44 @@ export default function SchedulePage() {
           return (
             <TabsContent key={day} value={day} className="space-y-4 sm:space-y-6">
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
-                  <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                      Total Accounts
-                    </CardTitle>
+                  <CardHeader className="p-4 pb-0">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xl sm:text-2xl font-bold">{stats.total}</p>
-                      <Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                    </div>
+                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                    <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+                    <Users className="h-5 w-5 text-blue-600" />
                   </CardContent>
                 </Card>
+
                 <Card>
-                  <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                      Successful
-                    </CardTitle>
+                  <CardHeader className="p-4 pb-0">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.success}</p>
-                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                    </div>
+                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                    <p className="text-2xl font-bold text-green-600">{stats.success}</p>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
                   </CardContent>
                 </Card>
-                <Card className="col-span-1">
-                  <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                      Needs Password
-                    </CardTitle>
+
+                <Card>
+                  <CardHeader className="p-4 pb-0">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xl sm:text-2xl font-bold text-orange-600">{stats.needsPassword}</p>
-                      <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
-                    </div>
+                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                    <p className="text-2xl font-bold text-orange-600">{stats.needsPassword}</p>
+                    <AlertTriangle className="h-5 w-5 text-orange-600" />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="p-4 pb-0">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-2 flex justify-between items-center">
+                    <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
+                    <Clock className="h-5 w-5 text-amber-600" />
                   </CardContent>
                 </Card>
               </div>
@@ -288,13 +305,13 @@ export default function SchedulePage() {
                     {day} Accounts ({stats.total})
                   </CardTitle>
                   <CardDescription className="text-xs sm:text-sm">
-                    Accounts scheduled for login on ${day}
+                    Accounts scheduled for login on {day}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                   {dayAccounts.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8 text-sm">
-                      No accounts scheduled for ${day}
+                      No accounts scheduled for {day}
                     </p>
                   ) : (
                     <div className="space-y-2 sm:space-y-3">
