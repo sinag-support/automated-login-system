@@ -174,7 +174,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 px-2 sm:px-0">
+      <div className="space-y-6">
         <Skeleton className="h-9 w-48" />
         <Skeleton className="h-5 w-96" />
         <div className="space-y-4">
@@ -187,7 +187,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0 pb-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
