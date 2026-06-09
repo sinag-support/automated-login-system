@@ -507,85 +507,52 @@ export default function AccountsPage() {
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[180px]">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-3 w-3" />
-                    Mobile Number
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    <Store className="h-3 w-3" />
-                    Store Name
-                  </div>
-                </TableHead>
-                <TableHead className="w-[120px]">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-3 w-3" />
-                    Login Day
-                  </div>
-                </TableHead>
-                <TableHead className="w-[120px]">Status</TableHead>
-                <TableHead className="w-[180px]">Last Login</TableHead>
-                <TableHead className="w-[80px] text-right">Actions</TableHead>
+              <TableRow className="bg-muted/50">
+                <TableHead className="w-[180px] py-3">Mobile Number</TableHead>
+                <TableHead className="py-3">Store Name</TableHead>
+                <TableHead className="w-[120px] py-3">Login Day</TableHead>
+                <TableHead className="w-[120px] py-3">Status</TableHead>
+                <TableHead className="w-[180px] py-3">Last Login</TableHead>
+                <TableHead className="w-[80px] py-3 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedAccounts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    {filteredAccounts.length === 0 
-                      ? 'No accounts found' 
-                      : 'No accounts on this page'}
+              {paginatedAccounts.map((account) => (
+                <TableRow key={account.id} className="hover:bg-muted/50 transition-colors">
+                  <TableCell className="py-3 font-mono text-sm">
+                    {formatMobileNumber(account.mobileNumber)}
+                  </TableCell>
+                  <TableCell className="py-3 font-medium">{account.storeName}</TableCell>
+                  <TableCell className="py-3">{account.loginDay}</TableCell>
+                  <TableCell className="py-3">{getStatusBadge(account.status)}</TableCell>
+                  <TableCell className="py-3 text-sm text-muted-foreground">
+                    {account.lastLogin ? new Date(account.lastLogin).toLocaleString() : 'Never'}
+                  </TableCell>
+                  <TableCell className="py-3 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleEditAccount(account)}>
+                          <Edit className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUpdatePassword(account)}>
+                          <Key className="mr-2 h-4 w-4" /> Update Password
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteAccount(account.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ) : (
-                paginatedAccounts.map((account) => (
-                  <TableRow key={account.id}>
-                    <TableCell className="font-mono text-sm">
-                      {formatMobileNumber(account.mobileNumber)}
-                    </TableCell>
-                    <TableCell className="font-medium">{account.storeName}</TableCell>
-                    <TableCell>{account.loginDay}</TableCell>
-                    <TableCell>{getStatusBadge(account.status)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {account.lastLogin 
-                        ? new Date(account.lastLogin).toLocaleString() 
-                        : 'Never'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleEditAccount(account)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleUpdatePassword(account)}>
-                            <Key className="mr-2 h-4 w-4" />
-                            Update Password
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleDeleteAccount(account.id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              ))}
             </TableBody>
           </Table>
         </CardContent>

@@ -237,7 +237,7 @@ export default function SchedulePage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 px-2 sm:px-0">
+      <div className="space-y-6">
         <Skeleton className="h-9 w-48" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -250,7 +250,7 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0 pb-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

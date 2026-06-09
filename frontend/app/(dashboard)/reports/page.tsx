@@ -16,7 +16,8 @@ import {
   RefreshCw, 
   FileText, 
   AlertTriangle,
-  Download
+  Download,
+  Store
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -220,7 +221,7 @@ export default function ReportsPage() {
         {/* Overview Tab - shows status badge (aligned with other pages) */}
         <TabsContent value="overview" className="space-y-4">
           <Card>
-            <CardHeader className="px-4 pb-2">
+            <CardHeader className="p-4 pb-2">
               <CardTitle className="text-base">All Accounts</CardTitle>
               <CardDescription className="text-xs">Current status from database</CardDescription>
             </CardHeader>
@@ -228,23 +229,24 @@ export default function ReportsPage() {
               {accounts.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8 text-sm">No accounts found</p>
               ) : (
-                accounts.map((acc) => {
-                  // Same badge logic as Dashboard / Schedule
-                  const getStatusBadge = () => {
-                    if (acc.status === 'success') return <Badge variant="default">Success</Badge>
-                    if (acc.status === 'needs_password_update') return <Badge variant="outline" className="border-orange-500 text-orange-600">Needs Password</Badge>
-                    return <Badge variant="secondary">Pending</Badge>
-                  }
-                  return (
-                    <div key={acc.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-3 gap-2">
+                accounts.map((acc) => (
+                  <div key={acc.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-2 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Store className="h-5 w-5 text-primary" />
                       <div>
                         <p className="font-medium">{acc.storeName}</p>
                         <p className="text-xs text-muted-foreground">{acc.mobileNumber}</p>
                       </div>
-                      {getStatusBadge()}
                     </div>
-                  )
-                })
+                    {acc.status === 'success' ? (
+                      <Badge variant="default">Success</Badge>
+                    ) : acc.status === 'needs_password_update' ? (
+                      <Badge variant="outline" className="border-orange-500 text-orange-600">Needs Password</Badge>
+                    ) : (
+                      <Badge variant="secondary">Pending</Badge>
+                    )}
+                  </div>
+                ))
               )}
             </CardContent>
           </Card>
