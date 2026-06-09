@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -63,12 +63,15 @@ export default function SchedulePage() {
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<ScheduleAccount | null>(null)
   const [assignDay, setAssignDay] = useState('Monday')
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
+  // Ref to store the latest accounts for polling (avoids stale closure)
+  const accountsRef = useRef(accounts)
   useEffect(() => {
-    fetchAccounts()
-  }, [])
+    accountsRef.current = accounts
+  }, [accounts])
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
@@ -88,8 +91,13 @@ export default function SchedulePage() {
       toast.error('Failed to load accounts')
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchAccounts()
+  }, [fetchAccounts])
 
   const getDayAccounts = (day: string) => {
     return accounts.filter(a => a.loginDay === day)
@@ -128,19 +136,72 @@ export default function SchedulePage() {
       if (res.ok) {
         if (data.skippedAll) {
           toast.info(data.message || 'All accounts are already successful – nothing to run.')
+          setIsRunning(false)
         } else {
           toast.success(data.message || `Automation started for ${selectedDay}`)
+          // Start polling for completion
+          pollUntilFinished()
         }
-        // Refresh accounts after a short delay to reflect status changes
-        setTimeout(() => fetchAccounts(), 5000)
       } else {
         toast.error(data.error || 'Failed to start automation')
+        setIsRunning(false)
       }
     } catch (error) {
       toast.error('Failed to trigger automation')
-    } finally {
       setIsRunning(false)
     }
+  }
+
+  const pollUntilFinished = () => {
+    let interval: NodeJS.Timeout | null = null
+
+    const poll = async () => {
+      // Refresh accounts to get latest statuses
+      await fetchAccounts()
+      
+      // Use the ref to get the most recent accounts
+      const currentAccounts = accountsRef.current
+      const stillPending = currentAccounts.some(
+        a => a.loginDay === selectedDay && a.status === 'pending'
+      )
+      
+      if (!stillPending) {
+        // No pending accounts left for this day → automation finished
+        if (interval) clearInterval(interval)
+        setIsRunning(false)
+        toast.success(`Automation for ${selectedDay} completed!`)
+      }
+    }
+
+    // Poll every 10 seconds
+    interval = setInterval(poll, 10000)
+    // Also store interval in a ref to clean up if component unmounts while running
+    const cleanup = () => {
+      if (interval) clearInterval(interval)
+    }
+    // Return cleanup function but we need to attach it to component unmount
+    // We'll use a useEffect to handle that
+    window.__pollCleanup = cleanup  // hack – better: store in a ref
+    // Actually, store the interval in a ref:
+    if (typeof window !== 'undefined') {
+      (window as any).__pollInterval = interval
+    }
+  }
+
+  // Cleanup polling if component unmounts while still running
+  useEffect(() => {
+    return () => {
+      if ((window as any).__pollInterval) {
+        clearInterval((window as any).__pollInterval)
+        delete (window as any).__pollInterval
+      }
+    }
+  }, [])
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchAccounts()
+    toast.success('Accounts refreshed')
   }
 
   const handleAssignDay = async () => {
@@ -190,7 +251,7 @@ export default function SchedulePage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 px-2 sm:px-0">
         <Skeleton className="h-9 w-48" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -203,40 +264,44 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+      {/* Header with buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-sm text-muted-foreground mt-1">
             View and manage login schedules by day
           </p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button 
+            onClick={handleRunAutomation} 
+            disabled={isRunning || allAccountsSuccess}
+            title={allAccountsSuccess ? "All accounts are already successful – nothing to run" : ""}
+          >
+            {isRunning ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Automation Running...
+              </>
+            ) : allAccountsSuccess ? (
+              <>
+                <Ban className="mr-2 h-4 w-4" />
+                All Successful
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 h-4 w-4" />
+                Run {selectedDay} Automation
+              </>
+            )}
+          </Button>
+        </div>
       </div>
-
-      <Button 
-        onClick={handleRunAutomation} 
-        disabled={isRunning || allAccountsSuccess}
-        className="w-full sm:w-auto"
-        title={allAccountsSuccess ? "All accounts are already successful – nothing to run" : ""}
-      >
-        {isRunning ? (
-          <>
-            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-            Running...
-          </>
-        ) : allAccountsSuccess ? (
-          <>
-            <Ban className="mr-2 h-4 w-4" />
-            All Successful
-          </>
-        ) : (
-          <>
-            <Play className="mr-2 h-4 w-4" />
-            Run {selectedDay} Automation
-          </>
-        )}
-      </Button>
 
       {/* Day Tabs */}
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="space-y-4 sm:space-y-6">
@@ -257,40 +322,40 @@ export default function SchedulePage() {
               {/* Stats Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
-                  <CardHeader className="px-4 pb-0">
+                  <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
                   </CardHeader>
-                  <CardContent className="px-4 pt-2 flex justify-between items-center">
+                  <CardContent className="p-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
                     <Users className="h-5 w-5 text-blue-600" />
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="px-4 pb-0">
+                  <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
                   </CardHeader>
-                  <CardContent className="px-4 pt-2 flex justify-between items-center">
+                  <CardContent className="p-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-green-600">{stats.success}</p>
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="px-4 pb-0">
+                  <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
                   </CardHeader>
-                  <CardContent className="px-4 pt-2 flex justify-between items-center">
+                  <CardContent className="p-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-orange-600">{stats.needsPassword}</p>
                     <AlertTriangle className="h-5 w-5 text-orange-600" />
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="px-4 pb-0">
+                  <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
                   </CardHeader>
-                  <CardContent className="px-4 pt-2 flex justify-between items-center">
+                  <CardContent className="p-4 pt-2 flex justify-between items-center">
                     <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
                     <Clock className="h-5 w-5 text-amber-600" />
                   </CardContent>
@@ -299,7 +364,7 @@ export default function SchedulePage() {
 
               {/* Accounts List */}
               <Card>
-                <CardHeader>
+                <CardHeader className="p-4 sm:p-6">
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                     {day} Accounts ({stats.total})
@@ -308,7 +373,7 @@ export default function SchedulePage() {
                     Accounts scheduled for login on {day}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                   {dayAccounts.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8 text-sm">
                       No accounts scheduled for {day}

@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import { LoginAutomation } from './automation'
-import { updateAccountStatus, createLoginLog, getAccountsByStatusAndDay } from './db'
+import { updateAccountStatus, getAccountsByStatusAndDay } from './db'
 
 async function processPendingTasks() {
   const targetDay = process.env.TARGET_DAY
@@ -37,7 +37,6 @@ async function processPendingTasks() {
         // Use 'needs_password_update' on failure, not 'failed'
         const status = result.success ? 'success' : 'needs_password_update'
         await updateAccountStatus(account.id, status, new Date())
-        await createLoginLog(account.id, status, result.error)
 
         console.log(`   ${result.success ? '✅ Success' : '❌ Failed (needs password update)'}`)
       } catch (err: any) {
