@@ -189,11 +189,28 @@ export default function SettingsPage() {
   return (
     <div className="space-y-4 sm:space-y-6 px-2 sm:px-0 pb-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1 sm:mt-2">
-          Manage your application settings and preferences
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
+          <p className="text-sm text-muted-foreground mt-1 sm:mt-2">
+            Manage your application settings and preferences
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={handleSaveAllSettings} disabled={isSaving} size="sm" className="w-full sm:w-auto">
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save All Settings
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
@@ -423,23 +440,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button onClick={handleSaveAllSettings} disabled={isSaving} size="sm" className="w-full sm:w-auto">
-          {isSaving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              Save All Settings
-            </>
-          )}
-        </Button>
-      </div>
     </div>
   )
 }
