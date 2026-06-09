@@ -5,66 +5,98 @@ export async function POST(req: NextRequest) {
   try {
     const { day } = await req.json()
     
-    // 1. Initialize Supabase (using service role key for updates)
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!, 
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     )
 
-    // 2. Get accounts for the given day that are NOT already 'success'
+    // Check if there's already a running workflow for this day
+    const { data: existingRun, error: checkError } = await supabase
+      .from('workflow_runs')
+      .select('id')
+      .eq('day', day)
+      .eq('status', 'running')
+      .single()
+
+    if (existingRun) {
+      return NextResponse.json(
+        { error: `Automation for ${day} is already running. Please wait.` },
+        { status: 409 }
+      )
+    }
+
+    // Get accounts for this day that are NOT already 'success'
     const { data: accountsToUpdate, error: fetchError } = await supabase
       .from('accounts')
       .select('id, status')
       .eq('login_day', day)
-      .neq('status', 'success')   // only pending or needs_password_update
+      .neq('status', 'success')
 
-    if (fetchError) {
-      console.error("Supabase fetch error:", fetchError)
-      return NextResponse.json({ error: fetchError.message }, { status: 500 })
-    }
+    if (fetchError) throw fetchError
 
     if (!accountsToUpdate || accountsToUpdate.length === 0) {
-      // Nothing to process
       return NextResponse.json({ 
         message: `All accounts for ${day} are already successful. No action taken.`,
         skippedAll: true
       })
     }
 
-    // 3. Update only those accounts to 'pending'
+    // Update those accounts to 'pending'
     const { error: updateError } = await supabase
       .from('accounts')
       .update({ status: 'pending' })
       .in('id', accountsToUpdate.map(a => a.id))
 
-    if (updateError) {
-      console.error("Supabase update error:", updateError)
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    if (updateError) throw updateError
+
+    // Insert a new workflow run record with status 'running'
+    const { data: runRecord, error: insertError } = await supabase
+      .from('workflow_runs')
+      .insert({
+        day,
+        status: 'running',
+        triggered_by: 'manual',
+        started_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error('Failed to insert workflow run:', insertError)
+      // Continue anyway – the workflow will still run
     }
 
-    // 4. Trigger GitHub Action (only if there were accounts to process)
+    // Trigger GitHub Action
     const githubResponse = await fetch(
-      `https://api.github.com/repos/official-errol/automated-login-system/actions/workflows/daily-login.yml/dispatches`, 
+      `https://api.github.com/repos/official-errol/automated-login-system/actions/workflows/daily-login.yml/dispatches`,
       {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
           'Accept': 'application/vnd.github.v3+json',
-          'X-GitHub-Api-Version': '2022-11-28'
         },
-        body: JSON.stringify({ ref: 'main', inputs: { day } })
+        body: JSON.stringify({
+          ref: 'main',
+          inputs: { day }
+        })
       }
     )
 
     if (!githubResponse.ok) {
-      const errorText = await githubResponse.text()
-      console.error("GitHub Trigger Error:", errorText)
-      return NextResponse.json({ error: "Failed to trigger GitHub Action" }, { status: 500 })
+      // If GitHub trigger fails, mark the run as failed
+      if (runRecord) {
+        await supabase
+          .from('workflow_runs')
+          .update({ status: 'failed', completed_at: new Date().toISOString() })
+          .eq('id', runRecord.id)
+      }
+      throw new Error('Failed to trigger GitHub Action')
     }
 
     return NextResponse.json({ 
       message: `${accountsToUpdate.length} accounts for ${day} set to pending. Workflow triggered.`,
-      updatedCount: accountsToUpdate.length
+      updatedCount: accountsToUpdate.length,
+      runId: runRecord?.id
     })
   } catch (error: any) {
     console.error("Trigger API error:", error)

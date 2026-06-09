@@ -63,3 +63,19 @@ export async function updateAccountStatus(
     console.error(`Failed to update account ${id}:`, error)
   }
 }
+
+// Optional – keep only if you want login history
+export async function createLoginLog(accountId: string, status: string, errorMessage?: string) {
+  const { error } = await supabase
+    .from('login_logs')
+    .insert({
+      account_id: accountId,
+      status,
+      error: errorMessage,
+      created_at: new Date().toISOString()
+    })
+
+  if (error) {
+    console.error('Failed to create login log:', error)
+  }
+}
