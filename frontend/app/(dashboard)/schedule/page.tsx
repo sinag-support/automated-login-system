@@ -59,31 +59,15 @@ export default function SchedulePage() {
     }
     return dayMap[today] || 'Monday'
   })
-  const [isRunning, setIsRunning] = useState(false) // local UI state while starting
-  const [workflowRunning, setWorkflowRunning] = useState(false) // from DB
+  const [isStarting, setIsStarting] = useState(false) // local while triggering
+  const [globalWorkflowRunning, setGlobalWorkflowRunning] = useState(false)
+  const [runningDay, setRunningDay] = useState<string | null>(null)
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<ScheduleAccount | null>(null)
   const [assignDay, setAssignDay] = useState('Monday')
   const pollingInterval = useRef<NodeJS.Timeout | null>(null)
 
-  useEffect(() => {
-    fetchAccounts()
-    // Cleanup polling on unmount
-    return () => {
-      if (pollingInterval.current) clearInterval(pollingInterval.current)
-    }
-  }, [])
-
-  // Poll for workflow status whenever selectedDay changes
-  useEffect(() => {
-    checkWorkflowStatus()
-    if (pollingInterval.current) clearInterval(pollingInterval.current)
-    pollingInterval.current = setInterval(checkWorkflowStatus, 10000) // every 10 seconds
-    return () => {
-      if (pollingInterval.current) clearInterval(pollingInterval.current)
-    }
-  }, [selectedDay])
-
+  // Fetch accounts data
   const fetchAccounts = async () => {
     try {
       const token = localStorage.getItem('token')
@@ -107,18 +91,30 @@ export default function SchedulePage() {
     }
   }
 
-  const checkWorkflowStatus = async () => {
+  // Check if ANY workflow is running globally
+  const checkGlobalWorkflowStatus = async () => {
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch(`/api/workflow/status?day=${selectedDay}`, {
+      const res = await fetch('/api/workflow/running', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await res.json()
-      setWorkflowRunning(data.isRunning || false)
+      setGlobalWorkflowRunning(data.isRunning || false)
+      setRunningDay(data.runningDay || null)
     } catch (error) {
-      console.error('Failed to check workflow status:', error)
+      console.error('Failed to check global workflow status:', error)
     }
   }
+
+  // Initial load and polling
+  useEffect(() => {
+    fetchAccounts()
+    checkGlobalWorkflowStatus()
+    pollingInterval.current = setInterval(checkGlobalWorkflowStatus, 10000) // every 10 sec
+    return () => {
+      if (pollingInterval.current) clearInterval(pollingInterval.current)
+    }
+  }, [])
 
   const getDayAccounts = (day: string) => {
     return accounts.filter(a => a.loginDay === day)
@@ -140,10 +136,24 @@ export default function SchedulePage() {
     return dayAccounts.length > 0 && dayAccounts.every(a => a.status === 'success')
   }, [accounts, selectedDay])
 
+  // Determine if the button should be disabled
+  const buttonDisabled = isStarting || globalWorkflowRunning || allAccountsSuccess
+
+  // Button tooltip message
+  const getButtonTitle = () => {
+    if (globalWorkflowRunning) {
+      return runningDay 
+        ? `Automation is already running for ${runningDay}. Please wait.` 
+        : 'Automation is already running. Please wait.'
+    }
+    if (allAccountsSuccess) {
+      return 'All accounts for this day are already successful – nothing to run.'
+    }
+    return ''
+  }
+
   const handleRunAutomation = async () => {
-    // Optimistically disable the button
-    setIsRunning(true)
-    setWorkflowRunning(true)
+    setIsStarting(true)
     try {
       const res = await fetch('/api/worker/trigger', {
         method: 'POST',
@@ -159,23 +169,24 @@ export default function SchedulePage() {
       if (res.ok) {
         if (data.skippedAll) {
           toast.info(data.message || 'All accounts are already successful – nothing to run.')
-          // No workflow was started, so reset the running states
-          setWorkflowRunning(false)
+          // No workflow was started, so global state should still be false
+          setGlobalWorkflowRunning(false)
         } else {
           toast.success(data.message || `Automation started for ${selectedDay}`)
-          // Workflow is actually running – polling will keep the button disabled
+          // Immediately assume it's running (optimistic)
+          setGlobalWorkflowRunning(true)
+          setRunningDay(selectedDay)
+          // Polling will update the actual status soon
         }
-        // Refresh accounts after a short delay to reflect status changes
+        // Refresh accounts after a short delay
         setTimeout(() => fetchAccounts(), 5000)
       } else {
         toast.error(data.error || 'Failed to start automation')
-        setWorkflowRunning(false)
       }
     } catch (error) {
       toast.error('Failed to trigger automation')
-      setWorkflowRunning(false)
     } finally {
-      setIsRunning(false)
+      setIsStarting(false)
     }
   }
 
@@ -224,9 +235,6 @@ export default function SchedulePage() {
     return number
   }
 
-  // Determine if the button should be disabled
-  const buttonDisabled = isRunning || workflowRunning || allAccountsSuccess
-
   if (loading) {
     return (
       <div className="space-y-6 px-2 sm:px-0">
@@ -258,13 +266,12 @@ export default function SchedulePage() {
           <Button 
             onClick={handleRunAutomation} 
             disabled={buttonDisabled}
-            title={workflowRunning ? "Automation is already running for this day" : 
-                   allAccountsSuccess ? "All accounts are already successful – nothing to run" : ""}
+            title={getButtonTitle()}
           >
-            {isRunning || workflowRunning ? (
+            {isStarting || globalWorkflowRunning ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                {workflowRunning ? "Running..." : "Starting..."}
+                {globalWorkflowRunning ? "Running..." : "Starting..."}
               </>
             ) : allAccountsSuccess ? (
               <>
