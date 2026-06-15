@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Bot, Send, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -23,13 +22,22 @@ export function AIAssistant() {
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages])
+
+  // Also scroll when loading state changes (for the loading indicator)
+  useEffect(() => {
+    if (isLoading && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [isLoading])
 
   const sendMessage = async () => {
     if (!input.trim()) return
@@ -49,7 +57,7 @@ export function AIAssistant() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          messages: messages.concat({ role: 'user', content: userMessage })
+          messages: [...messages, { role: 'user', content: userMessage }]
         })
       })
 
@@ -81,6 +89,7 @@ export function AIAssistant() {
 
   return (
     <>
+      {/* Floating button */}
       <Button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 rounded-full shadow-lg h-14 w-14 z-50"
@@ -89,38 +98,46 @@ export function AIAssistant() {
         <Bot className="h-6 w-6" />
       </Button>
 
+      {/* Chat window */}
       {isOpen && (
-        <Card className="fixed bottom-24 right-6 w-[90vw] sm:w-96 h-[500px] flex flex-col shadow-xl z-50">
-          <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0">
-            <div className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">AI Assistant</CardTitle>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setIsOpen(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </CardHeader>
+        <>
+          {/* Backdrop overlay - closes chat when clicked */}
+          <div 
+            className="fixed inset-0 z-40 bg-black/50 sm:hidden"
+            onClick={() => setIsOpen(false)}
+          />
+          
+          <Card className="fixed bottom-0 sm:bottom-24 right-0 sm:right-6 w-full sm:w-96 h-[100dvh] sm:h-[600px] flex flex-col shadow-xl z-50 rounded-t-xl sm:rounded-xl">
+            <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0 bg-background rounded-t-xl">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">AI Assistant</CardTitle>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setIsOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
 
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-            <div className="space-y-3">
+            {/* Messages container - this is what scrolls */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-background">
               {messages.map((message, idx) => (
                 <div
                   key={idx}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
+                    className={`max-w-[85%] rounded-lg p-3 ${
                       message.role === 'user'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                   </div>
                 </div>
               ))}
@@ -131,29 +148,31 @@ export function AIAssistant() {
                   </div>
                 </div>
               )}
+              {/* Invisible element to scroll to */}
+              <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
 
-          <CardFooter className="p-4 pt-0 border-t mt-auto">
-            <div className="flex w-full gap-2">
-              <Input
-                placeholder="Ask about the system..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isLoading}
-                className="flex-1"
-              />
-              <Button
-                size="icon"
-                onClick={sendMessage}
-                disabled={!input.trim() || isLoading}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardFooter>
-        </Card>
+            <CardFooter className="p-4 border-t bg-background">
+              <div className="flex w-full gap-2">
+                <Input
+                  placeholder="Ask about the system..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  disabled={isLoading}
+                  className="flex-1"
+                />
+                <Button
+                  size="icon"
+                  onClick={sendMessage}
+                  disabled={!input.trim() || isLoading}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardFooter>
+          </Card>
+        </>
       )}
     </>
   )
