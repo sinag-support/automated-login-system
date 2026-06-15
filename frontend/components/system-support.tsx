@@ -221,9 +221,9 @@ export default function SystemSupport() {
         }`}
         style={{
           transform: `translate(${position.x}px, ${position.y}px)`,
-          right: 0,
+          right: 10,
           bottom: 'auto',
-          top: 1,
+          top: 10,
           left: 'auto',
           touchAction: 'none', // Prevents page scroll while dragging
         }}
