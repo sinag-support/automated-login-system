@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-const SITE_NAME = 'Login Automation System'
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 
 const SYSTEM_PROMPT = `You are an AI assistant specialized in the Login Automation System. Keep responses short and practical.
 
@@ -16,90 +15,33 @@ Key facts about this system:
 
 Answer questions concisely. Focus on practical help for using this system.`
 
-// Free models available on OpenRouter
-const FREE_MODELS = [
-  'google/gemini-2.0-flash-exp:free',
-  'google/gemini-flash-1.5-8b',
-  'microsoft/phi-3-mini-128k-instruct:free',
-  'qwen/qwen-2.5-3b-instruct:free',
-  'mistralai/mistral-7b-instruct:free'
-]
-
 export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json()
 
-    if (!OPENROUTER_API_KEY) {
-      console.error('OpenRouter API key not configured')
+    if (!GEMINI_API_KEY) {
+      console.error('Gemini API key not configured')
       return NextResponse.json(
         { error: 'AI service not configured' },
         { status: 500 }
       )
     }
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
+
+    // Get the last user message
+    const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop()
+    
+    if (!lastUserMessage) {
+      return NextResponse.json({ error: 'No user message found' }, { status: 400 })
     }
 
-    if (SITE_URL) {
-      headers['HTTP-Referer'] = SITE_URL
-    }
-    if (SITE_NAME) {
-      headers['X-Title'] = SITE_NAME
-    }
+    const fullPrompt = `${SYSTEM_PROMPT}\n\nUser question: ${lastUserMessage.content}`
+    
+    const result = await model.generateContent(fullPrompt)
+    const reply = result.response.text()
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        // Use a confirmed working free model
-        model: 'google/gemini-flash-1.5-8b',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...messages.slice(-10)
-        ],
-        temperature: 0.7,
-        max_tokens: 500,
-      }),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      console.error('OpenRouter error:', data)
-      
-      // Fallback to another free model if this one fails
-      if (data.error?.message?.includes('model')) {
-        const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            model: 'microsoft/phi-3-mini-128k-instruct:free',
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              ...messages.slice(-10)
-            ],
-            temperature: 0.7,
-            max_tokens: 500,
-          }),
-        })
-        
-        const fallbackData = await fallbackResponse.json()
-        
-        if (fallbackResponse.ok) {
-          const reply = fallbackData.choices[0]?.message?.content || 'Sorry, I could not process that.'
-          return NextResponse.json({ reply })
-        }
-      }
-      
-      return NextResponse.json(
-        { error: data.error?.message || 'AI service error' },
-        { status: response.status }
-      )
-    }
-
-    const reply = data.choices[0]?.message?.content || 'Sorry, I could not process that.'
     return NextResponse.json({ reply })
   } catch (error) {
     console.error('Chat API error:', error)
