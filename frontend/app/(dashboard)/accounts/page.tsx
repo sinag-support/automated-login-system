@@ -44,6 +44,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -111,6 +121,7 @@ export default function AccountsPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchAccounts()
@@ -231,15 +242,9 @@ export default function AccountsPage() {
     }
   }
 
-  const handleResetAll = async () => {
-    const confirmed = window.confirm(
-      '⚠️ WARNING: This will reset ALL accounts to PENDING status.\n\n' +
-      'This includes accounts that are already successful. All accounts will be re-processed the next time automation runs.\n\n' +
-      'Are you sure?'
-    )
-    if (!confirmed) return
-
+  const performReset = async () => {
     setIsResetting(true)
+    setResetDialogOpen(false)
     try {
       const token = localStorage.getItem('token')
       const res = await fetch('/api/accounts/reset-all', {
@@ -252,7 +257,7 @@ export default function AccountsPage() {
       const data = await res.json()
       if (res.ok) {
         toast.success(data.message || 'All accounts reset to pending')
-        fetchAccounts() // refresh the table
+        fetchAccounts()
       } else {
         toast.error(data.error || 'Reset failed')
       }
@@ -436,7 +441,7 @@ export default function AccountsPage() {
         <div className="flex gap-2">
           <Button 
             variant="outline" 
-            onClick={handleResetAll} 
+            onClick={() => setResetDialogOpen(true)} 
             disabled={isResetting}
           >
             <RotateCcw className={`mr-2 h-4 w-4 ${isResetting ? 'animate-spin' : ''}`} />
@@ -821,6 +826,28 @@ export default function AccountsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reset <strong>ALL</strong> accounts to <strong>Pending</strong> status.
+              <br /><br />
+              This includes accounts that are already successful. All accounts will be re‑processed the next time automation runs.
+              <br /><br />
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={performReset} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Yes, reset all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
