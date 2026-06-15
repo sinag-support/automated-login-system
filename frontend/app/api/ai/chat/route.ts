@@ -16,6 +16,15 @@ Key facts about this system:
 
 Answer questions concisely. Focus on practical help for using this system.`
 
+// Free models available on OpenRouter
+const FREE_MODELS = [
+  'google/gemini-2.0-flash-exp:free',
+  'google/gemini-flash-1.5-8b',
+  'microsoft/phi-3-mini-128k-instruct:free',
+  'qwen/qwen-2.5-3b-instruct:free',
+  'mistralai/mistral-7b-instruct:free'
+]
+
 export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json()
@@ -28,13 +37,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Build headers with proper types (ensure no undefined values)
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
     }
 
-    // Only add optional headers if they have values
     if (SITE_URL) {
       headers['HTTP-Referer'] = SITE_URL
     }
@@ -46,7 +53,8 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-lite-preview-02-05:free',
+        // Use a confirmed working free model
+        model: 'google/gemini-flash-1.5-8b',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           ...messages.slice(-10)
@@ -60,6 +68,31 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       console.error('OpenRouter error:', data)
+      
+      // Fallback to another free model if this one fails
+      if (data.error?.message?.includes('model')) {
+        const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: 'microsoft/phi-3-mini-128k-instruct:free',
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              ...messages.slice(-10)
+            ],
+            temperature: 0.7,
+            max_tokens: 500,
+          }),
+        })
+        
+        const fallbackData = await fallbackResponse.json()
+        
+        if (fallbackResponse.ok) {
+          const reply = fallbackData.choices[0]?.message?.content || 'Sorry, I could not process that.'
+          return NextResponse.json({ reply })
+        }
+      }
+      
       return NextResponse.json(
         { error: data.error?.message || 'AI service error' },
         { status: response.status }
@@ -67,7 +100,6 @@ export async function POST(req: NextRequest) {
     }
 
     const reply = data.choices[0]?.message?.content || 'Sorry, I could not process that.'
-
     return NextResponse.json({ reply })
   } catch (error) {
     console.error('Chat API error:', error)
