@@ -221,10 +221,10 @@ export default function SystemSupport() {
         }`}
         style={{
           transform: `translate(${position.x}px, ${position.y}px)`,
-          right: 10,
+          right: 'auto',
           bottom: 'auto',
-          top: 10,
-          left: 'auto',
+          top: 0,
+          left: 0,
           touchAction: 'none', // Prevents page scroll while dragging
         }}
       >
