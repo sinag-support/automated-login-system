@@ -223,7 +223,7 @@ export default function SystemSupport() {
           transform: `translate(${position.x}px, ${position.y}px)`,
           right: 0,
           bottom: 'auto',
-          top: 20,
+          top: 1,
           left: 'auto',
           touchAction: 'none', // Prevents page scroll while dragging
         }}
