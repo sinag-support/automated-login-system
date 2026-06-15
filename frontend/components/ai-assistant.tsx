@@ -107,7 +107,7 @@ export function AIAssistant() {
             onClick={() => setIsOpen(false)}
           />
           
-          <Card className="fixed bottom-0 sm:bottom-24 right-0 sm:right-6 w-full sm:w-96 h-[100dvh] sm:h-[600px] flex flex-col shadow-xl z-50 rounded-t-xl sm:rounded-xl">
+          <Card className="fixed bottom-0 sm:bottom-24 right-0 sm:right-6 w-full sm:w-96 h-[60dvh] sm:h-[400px] flex flex-col shadow-xl z-50 rounded-t-xl sm:rounded-xl">
             <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0 bg-background rounded-t-xl">
               <div className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-primary" />
@@ -124,7 +124,7 @@ export function AIAssistant() {
             </CardHeader>
 
             {/* Messages container - this is what scrolls */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-background">
+            <div className="flex-1 overflow-y-auto p-4 bg-background">
               {messages.map((message, idx) => (
                 <div
                   key={idx}
