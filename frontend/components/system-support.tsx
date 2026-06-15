@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { MessageCircle, Send, X, Loader2, Sparkles, ChevronUp } from 'lucide-react'
+import { Send, X, Loader2, Sparkles, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Message {
@@ -32,15 +32,22 @@ export default function SystemSupport() {
   const [isMobile, setIsMobile] = useState(false)
   
   // Draggable state
-  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [position, setPosition] = useState({ x: 16, y: 16 }) // Start with offset from edges
   const [isDragging, setIsDragging] = useState(false)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [initialPosition, setInitialPosition] = useState({ x: 0, y: 0 })
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   // Check if mobile
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 640)
+      // Set default position based on screen size
+      if (window.innerWidth < 640) {
+        setPosition({ x: window.innerWidth - 72, y: window.innerHeight - 80 })
+      } else {
+        setPosition({ x: window.innerWidth - 72, y: window.innerHeight - 80 })
+      }
     }
     checkMobile()
     window.addEventListener('resize', checkMobile)
@@ -60,26 +67,55 @@ export default function SystemSupport() {
     }
   }, [isLoading])
 
-  // Draggable logic
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Unified drag handlers for both mouse and touch
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     if (isOpen) return
+    
     e.preventDefault()
     setIsDragging(true)
+    
+    // Get client coordinates from mouse or touch
+    let clientX, clientY
+    if ('touches' in e) {
+      // Touch event
+      clientX = e.touches[0].clientX
+      clientY = e.touches[0].clientY
+    } else {
+      // Mouse event
+      clientX = e.clientX
+      clientY = e.clientY
+    }
+    
     const rect = buttonRef.current?.getBoundingClientRect()
     if (rect) {
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+      setDragStart({
+        x: clientX - rect.left,
+        y: clientY - rect.top
       })
+      setInitialPosition({ ...position })
     }
   }
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleDragMove = (e: MouseEvent | TouchEvent) => {
       if (!isDragging) return
       
-      let newX = e.clientX - dragOffset.x
-      let newY = e.clientY - dragOffset.y
+      e.preventDefault()
+      
+      // Get client coordinates from mouse or touch
+      let clientX, clientY
+      if ('touches' in e) {
+        // Touch event
+        clientX = e.touches[0].clientX
+        clientY = e.touches[0].clientY
+      } else {
+        // Mouse event
+        clientX = e.clientX
+        clientY = e.clientY
+      }
+      
+      let newX = clientX - dragStart.x
+      let newY = clientY - dragStart.y
       
       // Constrain to window edges (with padding)
       const buttonSize = 56 // h-14 w-14 = 56px
@@ -91,20 +127,24 @@ export default function SystemSupport() {
       setPosition({ x: newX, y: newY })
     }
 
-    const handleMouseUp = () => {
+    const handleDragEnd = () => {
       setIsDragging(false)
     }
 
     if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
+      window.addEventListener('mousemove', handleDragMove)
+      window.addEventListener('mouseup', handleDragEnd)
+      window.addEventListener('touchmove', handleDragMove, { passive: false })
+      window.addEventListener('touchend', handleDragEnd)
     }
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('mousemove', handleDragMove)
+      window.removeEventListener('mouseup', handleDragEnd)
+      window.removeEventListener('touchmove', handleDragMove)
+      window.removeEventListener('touchend', handleDragEnd)
     }
-  }, [isDragging, dragOffset])
+  }, [isDragging, dragStart])
 
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim()) return
@@ -162,27 +202,34 @@ export default function SystemSupport() {
     }
   }
 
+  const handleOpenChat = () => {
+    if (!isDragging) {
+      setIsOpen(true)
+    }
+  }
+
   return (
     <>
       {/* Draggable Floating button */}
-      <Button
+      <button
         ref={buttonRef}
-        onClick={() => !isDragging && setIsOpen(true)}
-        onMouseDown={handleMouseDown}
-        className={`fixed rounded-full shadow-lg h-14 w-14 z-50 bg-primary hover:bg-primary/90 transition-shadow ${
-          isDragging ? 'cursor-grabbing opacity-90' : 'cursor-grab'
+        onClick={handleOpenChat}
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
+        className={`fixed rounded-full shadow-lg h-14 w-14 z-50 bg-primary hover:bg-primary/90 transition-all flex items-center justify-center ${
+          isDragging ? 'opacity-80 scale-105 cursor-grabbing' : 'cursor-grab'
         }`}
-        size="icon"
         style={{
           transform: `translate(${position.x}px, ${position.y}px)`,
-          right: 'auto',
+          right: 0,
           bottom: 'auto',
-          top: 0,
-          left: 0,
+          top: 20,
+          left: 'auto',
+          touchAction: 'none', // Prevents page scroll while dragging
         }}
       >
-        <Sparkles className="h-6 w-6" />
-      </Button>
+        <Sparkles className="h-6 w-6 text-white" />
+      </button>
 
       {/* Chat window */}
       {isOpen && (
@@ -273,7 +320,7 @@ export default function SystemSupport() {
             </div>
 
             {/* Footer - input area */}
-            <div className="p-4 border-t shrink-0">
+            <div className="p-2 border-t shrink-0">
               <div className="flex w-full gap-2">
                 <Input
                   placeholder="Ask about the system..."
@@ -281,13 +328,14 @@ export default function SystemSupport() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
                   disabled={isLoading}
-                  className="flex-1"
+                  className="flex-1 p-2"
                 />
                 <Button
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading}
                   className="px-4"
                 >
+                  <Send className="h-4 w-4 mr-2" />
                   Send
                 </Button>
               </div>
