@@ -4,7 +4,7 @@ import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { AIAssistant } from '@/components/ai-assistant'
+import SystemSupport from '@/components/system-support'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -29,7 +29,7 @@ export default function RootLayout({
         >
           <TooltipProvider>
             {children}
-            <AIAssistant />
+            <SystemSupport />
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>
