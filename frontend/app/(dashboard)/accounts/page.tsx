@@ -12,7 +12,8 @@ import {
   Calendar,
   MoreHorizontal,
   Edit,
-  Key
+  Key,
+  RotateCcw
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -81,7 +82,7 @@ const statusOptions = [
 ]
 const ITEMS_PER_PAGE = 20
 
-// Unified badge component (same as other pages)
+// Unified badge component
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'success':
@@ -109,6 +110,7 @@ export default function AccountsPage() {
     loginDay: 'Unscheduled' 
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
 
   useEffect(() => {
     fetchAccounts()
@@ -229,6 +231,38 @@ export default function AccountsPage() {
     }
   }
 
+  const handleResetAll = async () => {
+    const confirmed = window.confirm(
+      '⚠️ WARNING: This will reset ALL accounts to PENDING status.\n\n' +
+      'This includes accounts that are already successful. All accounts will be re-processed the next time automation runs.\n\n' +
+      'Are you sure?'
+    )
+    if (!confirmed) return
+
+    setIsResetting(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/accounts/reset-all', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message || 'All accounts reset to pending')
+        fetchAccounts() // refresh the table
+      } else {
+        toast.error(data.error || 'Reset failed')
+      }
+    } catch (error) {
+      toast.error('Failed to reset accounts')
+    } finally {
+      setIsResetting(false)
+    }
+  }
+
   const formatMobileNumber = (number: string): string => {
     const cleaned = number.replace(/\D/g, '')
     
@@ -323,7 +357,6 @@ export default function AccountsPage() {
 
   const hasActiveFilters = searchTerm || filterLoginDay !== 'All' || filterStatus !== 'All'
 
-  // Realistic loading skeleton
   if (loading) {
     return (
       <div className="space-y-6 px-2 sm:px-0">
@@ -400,73 +433,83 @@ export default function AccountsPage() {
             Manage your store accounts and login schedules
           </p>
         </div>
-        <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Account
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="w-[95vw] max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add New Account</DialogTitle>
-              <DialogDescription>
-                Enter the account details below
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddAccount} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="mobile">Mobile Number *</Label>
-                <Input
-                  id="mobile"
-                  type="tel"
-                  placeholder="639123456789"
-                  value={newAccount.mobileNumber}
-                  onChange={(e) => setNewAccount({ ...newAccount, mobileNumber: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Format: 639XXXXXXXXX
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="store">Store Name *</Label>
-                <Input
-                  id="store"
-                  type="text"
-                  placeholder="Main Street Store"
-                  value={newAccount.storeName}
-                  onChange={(e) => setNewAccount({ ...newAccount, storeName: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="loginDay">Login Day *</Label>
-                <Select
-                  value={newAccount.loginDay}
-                  onValueChange={(value) => setNewAccount({ ...newAccount, loginDay: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a day" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {loginDays.map(day => (
-                      <SelectItem key={day} value={day}>{day}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <DialogFooter className="flex-col sm:flex-row gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} className="w-full sm:w-auto">
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-                  {isSubmitting ? 'Adding...' : 'Add Account'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleResetAll} 
+            disabled={isResetting}
+          >
+            <RotateCcw className={`mr-2 h-4 w-4 ${isResetting ? 'animate-spin' : ''}`} />
+            Reset All to Pending
+          </Button>
+          <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Account
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-[95vw] max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add New Account</DialogTitle>
+                <DialogDescription>
+                  Enter the account details below
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddAccount} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="mobile">Mobile Number *</Label>
+                  <Input
+                    id="mobile"
+                    type="tel"
+                    placeholder="639123456789"
+                    value={newAccount.mobileNumber}
+                    onChange={(e) => setNewAccount({ ...newAccount, mobileNumber: e.target.value })}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Format: 639XXXXXXXXX
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="store">Store Name *</Label>
+                  <Input
+                    id="store"
+                    type="text"
+                    placeholder="Main Street Store"
+                    value={newAccount.storeName}
+                    onChange={(e) => setNewAccount({ ...newAccount, storeName: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="loginDay">Login Day *</Label>
+                  <Select
+                    value={newAccount.loginDay}
+                    onValueChange={(value) => setNewAccount({ ...newAccount, loginDay: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a day" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loginDays.map(day => (
+                        <SelectItem key={day} value={day}>{day}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} className="w-full sm:w-auto">
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+                    {isSubmitting ? 'Adding...' : 'Add Account'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Filters Card */}
