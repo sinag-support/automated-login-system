@@ -335,7 +335,6 @@ export default function SystemSupport() {
                   disabled={!input.trim() || isLoading}
                   className="px-4"
                 >
-                  <Send className="h-4 w-4 mr-2" />
                   Send
                 </Button>
               </div>
