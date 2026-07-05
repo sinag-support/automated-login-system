@@ -1,15 +1,11 @@
 import 'dotenv/config'
 import { LoginAutomation } from './automation'
-import { updateAccountStatus, createLoginLog, getAccountsByStatusAndDay, supabase } from './db'
+import { updateAccountStatus, createLoginLog, getAccountsByStatusAndDay, supabase, getSettings } from './db'
 
 async function markWorkflowRun(day: string, status: 'completed' | 'failed') {
-  // Update the most recent running run for this day
   const { error } = await supabase
     .from('workflow_runs')
-    .update({ 
-      status, 
-      completed_at: new Date().toISOString() 
-    })
+    .update({ status, completed_at: new Date().toISOString() })
     .eq('day', day)
     .eq('status', 'running')
     .order('started_at', { ascending: false })
@@ -30,6 +26,13 @@ async function processPendingTasks() {
 
   console.log(`🎯 Processing accounts for: ${targetDay}`)
 
+  // 1. Fetch settings once
+  const settings = await getSettings()
+  const primaryDefault = settings.default_password || 'Batangas01'
+  const secondaryDefault = settings.default_password_secondary || 'Appwards2025'
+  console.log(`🔑 Default passwords: primary='${primaryDefault}', secondary='${secondaryDefault}'`)
+
+  // 2. Get pending accounts for this day
   const pendingAccounts = await getAccountsByStatusAndDay('pending', targetDay)
 
   if (pendingAccounts.length === 0) {
@@ -50,18 +53,45 @@ async function processPendingTasks() {
       await LoginAutomation.delay(3000, 7000)
       console.log(`🔄 Processing: ${account.store_name}`)
 
-      try {
-        const password = account.customPassword || account.defaultPassword
-        const result = await automation.login(account.mobile_number, password)
+      // Build password list: custom → primary default → secondary default
+      const passwordsToTry: string[] = []
+      if (account.customPassword) {
+        passwordsToTry.push(account.customPassword)
+      }
+      passwordsToTry.push(primaryDefault)
+      if (secondaryDefault && secondaryDefault !== primaryDefault) {
+        passwordsToTry.push(secondaryDefault)
+      }
 
-        const status = result.success ? 'success' : 'needs_password_update'
-        await updateAccountStatus(account.id, status, new Date())
-        await createLoginLog(account.id, status, result.error)
+      let loginSuccess = false
+      let lastError = ''
 
-        console.log(`   ${result.success ? '✅ Success' : '❌ Failed (needs password update)'}`)
-      } catch (err: any) {
-        console.error(`   ❌ Error processing ${account.store_name}:`, err.message)
+      for (const pwd of passwordsToTry) {
+        const label = pwd === account.customPassword ? 'custom' :
+                      pwd === primaryDefault ? 'primary default' : 'secondary default'
+        console.log(`   🔑 Trying ${label}`)
+        try {
+          const result = await automation.login(account.mobile_number, pwd)
+          if (result.success) {
+            loginSuccess = true
+            console.log(`   ✅ Login SUCCESS with ${label}`)
+            await updateAccountStatus(account.id, 'success', new Date())
+            await createLoginLog(account.id, 'success')
+            break
+          } else {
+            lastError = result.error || 'Login failed'
+            console.log(`   ❌ Failed with ${label}: ${lastError}`)
+          }
+        } catch (err: any) {
+          lastError = err.message
+          console.error(`   ❌ Error with ${label}:`, err.message)
+        }
+      }
+
+      if (!loginSuccess) {
+        console.log(`   ❌ All passwords failed for ${account.store_name}`)
         await updateAccountStatus(account.id, 'needs_password_update', new Date())
+        await createLoginLog(account.id, 'needs_password_update', lastError)
         hasError = true
       }
     }

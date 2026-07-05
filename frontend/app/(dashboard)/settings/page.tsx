@@ -45,6 +45,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [adminEmail, setAdminEmail] = useState('')
   const [defaultPassword, setDefaultPassword] = useState('')
+  const [defaultPasswordSecondary, setDefaultPasswordSecondary] = useState('')
   const [delayBetweenLogins, setDelayBetweenLogins] = useState('3000')
   const [maxRetries, setMaxRetries] = useState('2')
   const [autoRetry, setAutoRetry] = useState(true)
@@ -56,7 +57,6 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showDefaultPassword, setShowDefaultPassword] = useState(false)
 
-  // Load settings on mount
   useEffect(() => {
     fetchSettings()
   }, [])
@@ -67,7 +67,8 @@ export default function SettingsPage() {
       const data = await res.json()
       
       setAdminEmail(data.admin_email || 'admin@example.com')
-      setDefaultPassword(data.default_password || 'Password01')
+      setDefaultPassword(data.default_password || 'Batangas01')
+      setDefaultPasswordSecondary(data.default_password_secondary || 'Appwards2025')
       setDelayBetweenLogins(data.delay_between_logins || '3000')
       setMaxRetries(data.max_retries || '2')
       setAutoRetry(data.auto_retry === 'true')
@@ -84,6 +85,7 @@ export default function SettingsPage() {
       const settings = {
         admin_email: adminEmail,
         default_password: defaultPassword,
+        default_password_secondary: defaultPasswordSecondary,
         delay_between_logins: delayBetweenLogins,
         max_retries: maxRetries,
         auto_retry: String(autoRetry)
@@ -171,11 +173,9 @@ export default function SettingsPage() {
     )
   }
 
-  // Realistic loading skeleton
   if (loading) {
     return (
       <div className="space-y-6 px-2 sm:px-0">
-        {/* Header skeleton */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <Skeleton className="h-9 w-32" />
@@ -183,11 +183,7 @@ export default function SettingsPage() {
           </div>
           <Skeleton className="h-10 w-32" />
         </div>
-
-        {/* Tabs skeleton */}
         <Skeleton className="h-10 w-full" />
-
-        {/* General settings card skeleton */}
         <Card>
           <CardHeader className="p-4 pb-2">
             <Skeleton className="h-5 w-32" />
@@ -220,7 +216,6 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 px-2 sm:px-0">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
@@ -228,21 +223,19 @@ export default function SettingsPage() {
             Manage your application settings and preferences
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleSaveAllSettings} disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save All Settings
-              </>
-            )}
-          </Button>
-        </div>
+        <Button onClick={handleSaveAllSettings} disabled={isSaving}>
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              Save All Settings
+            </>
+          )}
+        </Button>
       </div>
 
       <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
@@ -286,7 +279,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="defaultPassword" className="text-sm">Default Password</Label>
+                <Label htmlFor="defaultPassword" className="text-sm">Primary Default Password</Label>
                 <div className="relative">
                   <Input
                     id="defaultPassword"
@@ -303,15 +296,37 @@ export default function SettingsPage() {
                     onClick={() => setShowDefaultPassword(!showDefaultPassword)}
                     tabIndex={-1}
                   >
-                    {showDefaultPassword ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    )}
+                    {showDefaultPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Default password for new accounts
+                  Primary default password for accounts (overridden by custom password)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="defaultPasswordSecondary" className="text-sm">Secondary Default Password</Label>
+                <div className="relative">
+                  <Input
+                    id="defaultPasswordSecondary"
+                    type={showDefaultPassword ? 'text' : 'password'}
+                    value={defaultPasswordSecondary}
+                    onChange={(e) => setDefaultPasswordSecondary(e.target.value)}
+                    className="pr-10 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowDefaultPassword(!showDefaultPassword)}
+                    tabIndex={-1}
+                  >
+                    {showDefaultPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Fallback password if primary fails (optional)
                 </p>
               </div>
 
