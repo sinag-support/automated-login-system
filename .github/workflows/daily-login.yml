@@ -2,8 +2,8 @@ name: Run Daily Login
 
 on:
   schedule:
-    # Runs at 08:00 UTC, Mon-Sat
-    - cron: '0 8 * * 1-6'
+    # Runs at 10 PM UTC (6 AM Manila), Mon-Sat
+    - cron: '0 22 * * 1-6'
   workflow_dispatch:
     inputs:
       day:
@@ -34,7 +34,10 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      # 👇 ADD THIS STEP – sets TARGET_DAY for scheduled runs
+      # Set timezone to Manila so `date` returns correct weekday
+      - name: Set timezone to Manila
+        run: echo "TZ=Asia/Manila" >> $GITHUB_ENV
+
       - name: Set target day for scheduled run
         if: github.event_name == 'schedule'
         run: echo "TARGET_DAY=$(date +'%A')" >> $GITHUB_ENV
