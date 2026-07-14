@@ -32,7 +32,8 @@ import {
   AlertTriangle,
   Play,
   RefreshCw,
-  Ban
+  Ban,
+  AlertCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -48,7 +49,6 @@ interface ScheduleAccount {
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const scheduleDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-// Unified badge component (matches Dashboard, Accounts, Reports)
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'success':
@@ -71,15 +71,15 @@ export default function SchedulePage() {
     }
     return dayMap[today] || 'Monday'
   })
-  const [isStarting, setIsStarting] = useState(false) // local while triggering
+  const [isStarting, setIsStarting] = useState(false)
   const [globalWorkflowRunning, setGlobalWorkflowRunning] = useState(false)
   const [runningDay, setRunningDay] = useState<string | null>(null)
+  const [isStopping, setIsStopping] = useState(false)
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<ScheduleAccount | null>(null)
   const [assignDay, setAssignDay] = useState('Monday')
   const pollingInterval = useRef<NodeJS.Timeout | null>(null)
 
-  // Fetch accounts data
   const fetchAccounts = async () => {
     try {
       const token = localStorage.getItem('token')
@@ -103,7 +103,6 @@ export default function SchedulePage() {
     }
   }
 
-  // Check if ANY workflow is running globally
   const checkGlobalWorkflowStatus = async () => {
     try {
       const token = localStorage.getItem('token')
@@ -118,11 +117,10 @@ export default function SchedulePage() {
     }
   }
 
-  // Initial load and polling
   useEffect(() => {
     fetchAccounts()
     checkGlobalWorkflowStatus()
-    pollingInterval.current = setInterval(checkGlobalWorkflowStatus, 10000) // every 10 sec
+    pollingInterval.current = setInterval(checkGlobalWorkflowStatus, 10000)
     return () => {
       if (pollingInterval.current) clearInterval(pollingInterval.current)
     }
@@ -142,16 +140,13 @@ export default function SchedulePage() {
     }
   }
 
-  // Check if ALL accounts for the selected day are 'success'
   const allAccountsSuccess = useMemo(() => {
     const dayAccounts = getDayAccounts(selectedDay)
     return dayAccounts.length > 0 && dayAccounts.every(a => a.status === 'success')
   }, [accounts, selectedDay])
 
-  // Determine if the button should be disabled
   const buttonDisabled = isStarting || globalWorkflowRunning || allAccountsSuccess
 
-  // Button tooltip message
   const getButtonTitle = () => {
     if (globalWorkflowRunning) {
       return runningDay 
@@ -198,6 +193,44 @@ export default function SchedulePage() {
     }
   }
 
+  // NEW: Force stop handler
+  const handleForceStop = async () => {
+    if (!runningDay) {
+      toast.error('No running day found')
+      return
+    }
+    if (!window.confirm(`Are you sure you want to force stop the automation for ${runningDay}? This will mark it as failed.`)) {
+      return
+    }
+    setIsStopping(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/workflow/stop', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ day: runningDay })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message || 'Workflow stopped')
+        // Immediately update state and re-fetch
+        setGlobalWorkflowRunning(false)
+        setRunningDay(null)
+        await checkGlobalWorkflowStatus()
+        await fetchAccounts()
+      } else {
+        toast.error(data.error || 'Failed to stop workflow')
+      }
+    } catch (error) {
+      toast.error('Failed to stop workflow')
+    } finally {
+      setIsStopping(false)
+    }
+  }
+
   const handleAssignDay = async () => {
     if (!selectedAccount) return
 
@@ -233,11 +266,9 @@ export default function SchedulePage() {
     return number
   }
 
-  // Realistic loading skeleton
   if (loading) {
     return (
       <div className="space-y-6 px-2 sm:px-0">
-        {/* Header skeleton */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <Skeleton className="h-9 w-32" />
@@ -248,18 +279,12 @@ export default function SchedulePage() {
             <Skeleton className="h-10 w-32" />
           </div>
         </div>
-
-        {/* Tabs skeleton */}
         <Skeleton className="h-10 w-full" />
-
-        {/* Stats cards skeleton */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
-
-        {/* Accounts list skeleton */}
         <Card>
           <CardHeader className="p-4">
             <Skeleton className="h-5 w-32" />
@@ -289,7 +314,6 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-6 px-2 sm:px-0">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
@@ -301,6 +325,12 @@ export default function SchedulePage() {
           <Button variant="outline" onClick={fetchAccounts} disabled={loading}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
+          {globalWorkflowRunning && (
+            <Button variant="destructive" onClick={handleForceStop} disabled={isStopping}>
+              {isStopping ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <AlertCircle className="mr-2 h-4 w-4" />}
+              Force Stop
+            </Button>
+          )}
           <Button 
             onClick={handleRunAutomation} 
             disabled={buttonDisabled}
@@ -326,7 +356,6 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* Day Tabs */}
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           {daysOfWeek.map(day => (
@@ -342,7 +371,6 @@ export default function SchedulePage() {
           
           return (
             <TabsContent key={day} value={day} className="space-y-4 sm:space-y-6">
-              {/* Stats Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="p-4 pb-0">
@@ -353,7 +381,6 @@ export default function SchedulePage() {
                     <Users className="h-5 w-5 text-blue-600" />
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
@@ -363,7 +390,6 @@ export default function SchedulePage() {
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
@@ -373,7 +399,6 @@ export default function SchedulePage() {
                     <AlertTriangle className="h-5 w-5 text-orange-600" />
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
@@ -385,7 +410,6 @@ export default function SchedulePage() {
                 </Card>
               </div>
 
-              {/* Accounts List */}
               <Card>
                 <CardHeader className="p-4 sm:p-6">
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -437,7 +461,6 @@ export default function SchedulePage() {
         })}
       </Tabs>
 
-      {/* Assign Day Modal */}
       <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
