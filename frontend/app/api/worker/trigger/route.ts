@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_KEY!
     )
 
-    // Check if there's already a running workflow for this day
-    const { data: existingRun, error: checkError } = await supabase
+    // Check for existing running workflow
+    const { data: existingRun } = await supabase
       .from('workflow_runs')
       .select('id')
       .eq('day', day)
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get accounts for this day that are NOT already 'success'
+    // Get accounts to update
     const { data: accountsToUpdate, error: fetchError } = await supabase
       .from('accounts')
       .select('id, status')
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Update those accounts to 'pending'
+    // Set them to pending
     const { error: updateError } = await supabase
       .from('accounts')
       .update({ status: 'pending' })
@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
 
     if (updateError) throw updateError
 
-    // Insert a new workflow run record with status 'running'
-    const { data: runRecord, error: insertError } = await supabase
+    // Insert workflow run record
+    const { data: runRecord } = await supabase
       .from('workflow_runs')
       .insert({
         day,
@@ -61,37 +61,44 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (insertError) {
-      console.error('Failed to insert workflow run:', insertError)
+    // Trigger GitHub Action
+    const githubToken = process.env.GITHUB_TOKEN
+    if (!githubToken) {
+      console.error('GITHUB_TOKEN not set in environment')
+      return NextResponse.json({ error: 'GitHub token not configured' }, { status: 500 })
     }
 
-    // Trigger GitHub Action with is_manual flag
     const githubResponse = await fetch(
       `https://api.github.com/repos/official-errol/automated-login-system/actions/workflows/daily-login.yml/dispatches`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+          'Authorization': `Bearer ${githubToken}`,
           'Accept': 'application/vnd.github.v3+json',
         },
         body: JSON.stringify({
           ref: 'main',
-          inputs: {
-            day,
-            is_manual: 'true'   // 👈 flag to indicate manual trigger
-          }
+          inputs: { day, is_manual: 'true' }
         })
       }
     )
 
     if (!githubResponse.ok) {
+      const errorText = await githubResponse.text()
+      console.error('GitHub API Error:', githubResponse.status, githubResponse.statusText, errorText)
+      
+      // Mark the workflow run as failed
       if (runRecord) {
         await supabase
           .from('workflow_runs')
           .update({ status: 'failed', completed_at: new Date().toISOString() })
           .eq('id', runRecord.id)
       }
-      throw new Error('Failed to trigger GitHub Action')
+
+      return NextResponse.json(
+        { error: `GitHub API error: ${githubResponse.status} ${githubResponse.statusText}` },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({ 
@@ -100,7 +107,7 @@ export async function POST(req: NextRequest) {
       runId: runRecord?.id
     })
   } catch (error: any) {
-    console.error("Trigger API error:", error)
+    console.error('Trigger API error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
