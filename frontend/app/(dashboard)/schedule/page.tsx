@@ -21,6 +21,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
 import { 
   Calendar, 
@@ -75,6 +85,7 @@ export default function SchedulePage() {
   const [globalWorkflowRunning, setGlobalWorkflowRunning] = useState(false)
   const [runningDay, setRunningDay] = useState<string | null>(null)
   const [isStopping, setIsStopping] = useState(false)
+  const [forceStopDialogOpen, setForceStopDialogOpen] = useState(false)
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<ScheduleAccount | null>(null)
   const [assignDay, setAssignDay] = useState('Monday')
@@ -193,13 +204,11 @@ export default function SchedulePage() {
     }
   }
 
-  // NEW: Force stop handler
-  const handleForceStop = async () => {
+  // Force stop – called after user confirms in AlertDialog
+  const handleForceStopConfirm = async () => {
+    setForceStopDialogOpen(false)
     if (!runningDay) {
       toast.error('No running day found')
-      return
-    }
-    if (!window.confirm(`Are you sure you want to force stop the automation for ${runningDay}? This will mark it as failed.`)) {
       return
     }
     setIsStopping(true)
@@ -216,7 +225,6 @@ export default function SchedulePage() {
       const data = await res.json()
       if (res.ok) {
         toast.success(data.message || 'Workflow stopped')
-        // Immediately update state and re-fetch
         setGlobalWorkflowRunning(false)
         setRunningDay(null)
         await checkGlobalWorkflowStatus()
@@ -275,8 +283,8 @@ export default function SchedulePage() {
             <Skeleton className="h-4 w-64 mt-1" />
           </div>
           <div className="flex gap-2">
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-10 sm:w-24" />
+            <Skeleton className="h-10 w-10 sm:w-32" />
           </div>
         </div>
         <Skeleton className="h-10 w-full" />
@@ -314,6 +322,7 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-6 px-2 sm:px-0">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
@@ -322,40 +331,60 @@ export default function SchedulePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchAccounts} disabled={loading}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+          {/* Refresh – icon only on mobile */}
+          <Button
+            variant="outline"
+            onClick={fetchAccounts}
+            disabled={loading}
+            size="sm"
+            className="px-2 sm:px-3"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span className="hidden sm:inline ml-2">Refresh</span>
           </Button>
+
+          {/* Force Stop – opens AlertDialog, icon only on mobile */}
           {globalWorkflowRunning && (
-            <Button variant="destructive" onClick={handleForceStop} disabled={isStopping}>
-              {isStopping ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <AlertCircle className="mr-2 h-4 w-4" />}
-              Force Stop
+            <Button
+              variant="destructive"
+              onClick={() => setForceStopDialogOpen(true)}
+              disabled={isStopping}
+              size="sm"
+              className="px-2 sm:px-3"
+            >
+              <AlertCircle className={`h-4 w-4 ${isStopping ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline ml-2">Force Stop</span>
             </Button>
           )}
-          <Button 
-            onClick={handleRunAutomation} 
+
+          {/* Run Automation – keeps full text */}
+          <Button
+            onClick={handleRunAutomation}
             disabled={buttonDisabled}
             title={getButtonTitle()}
+            size="sm"
           >
             {isStarting || globalWorkflowRunning ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                {globalWorkflowRunning ? "Running..." : "Starting..."}
+                <span>{globalWorkflowRunning ? "Running..." : "Starting..."}</span>
               </>
             ) : allAccountsSuccess ? (
               <>
                 <Ban className="mr-2 h-4 w-4" />
-                All Successful
+                <span>All Successful</span>
               </>
             ) : (
               <>
                 <Play className="mr-2 h-4 w-4" />
-                Run {selectedDay} Automation
+                <span>Run {selectedDay} Automation</span>
               </>
             )}
           </Button>
         </div>
       </div>
 
+      {/* Tabs and rest of the page – unchanged */}
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           {daysOfWeek.map(day => (
@@ -381,6 +410,7 @@ export default function SchedulePage() {
                     <Users className="h-5 w-5 text-blue-600" />
                   </CardContent>
                 </Card>
+
                 <Card>
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
@@ -390,6 +420,7 @@ export default function SchedulePage() {
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   </CardContent>
                 </Card>
+
                 <Card>
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Needs Password</CardTitle>
@@ -399,6 +430,7 @@ export default function SchedulePage() {
                     <AlertTriangle className="h-5 w-5 text-orange-600" />
                   </CardContent>
                 </Card>
+
                 <Card>
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
@@ -461,6 +493,7 @@ export default function SchedulePage() {
         })}
       </Tabs>
 
+      {/* Assign Day Modal */}
       <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
@@ -492,6 +525,28 @@ export default function SchedulePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Force Stop AlertDialog */}
+      <AlertDialog open={forceStopDialogOpen} onOpenChange={setForceStopDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will force stop the automation for <strong>{runningDay}</strong> and mark it as <strong>failed</strong>.
+              <br /><br />
+              Any accounts that were not yet processed will remain <strong>pending</strong> and will be picked up in the next scheduled run.
+              <br /><br />
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleForceStopConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Yes, force stop
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
