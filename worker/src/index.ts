@@ -1,9 +1,9 @@
 import 'dotenv/config'
 import { LoginAutomation } from './automation'
-import { updateAccountStatus, createLoginLog, getAccountsByStatusAndDay, supabase, getSettings } from './db'
+import { updateAccountStatus, getAccountsByStatusAndDay, supabase, getSettings } from './db'
 
-// Spread logins over 6 hours (6am – 12pm Manila time)
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000
+// Always spread logins over 3 hours
+const THREE_HOURS_MS = 3 * 60 * 60 * 1000
 
 async function markWorkflowRun(day: string, status: 'completed' | 'failed') {
   const { error } = await supabase
@@ -29,13 +29,11 @@ async function processPendingTasks() {
 
   console.log(`🎯 Processing accounts for: ${targetDay}`)
 
-  // Fetch settings once
   const settings = await getSettings()
   const primaryDefault = settings.default_password || 'Batangas01'
   const secondaryDefault = settings.default_password_secondary || 'Appwards2025'
   console.log(`🔑 Default passwords: primary='${primaryDefault}', secondary='${secondaryDefault}'`)
 
-  // Get pending accounts for this day
   const pendingAccounts = await getAccountsByStatusAndDay('pending', targetDay)
 
   if (pendingAccounts.length === 0) {
@@ -46,10 +44,10 @@ async function processPendingTasks() {
 
   console.log(`📋 Found ${pendingAccounts.length} accounts to process.`)
 
-  // Randomly assign each account an offset (0 to 6 hours)
+  // Always assign a random offset (0 to 3 hours) for every run
   const accountsWithOffset = pendingAccounts.map(account => ({
     ...account,
-    offset: Math.floor(Math.random() * SIX_HOURS_MS)
+    offset: Math.floor(Math.random() * THREE_HOURS_MS)
   }))
 
   // Sort by offset (ascending)
@@ -63,7 +61,6 @@ async function processPendingTasks() {
     await automation.initialize()
 
     for (const account of accountsWithOffset) {
-      // Wait until this account's scheduled time
       const waitTime = account.offset - previousOffset
       if (waitTime > 0) {
         console.log(`⏳ Waiting ${(waitTime / 1000 / 60).toFixed(1)} minutes until next scheduled login...`)
@@ -71,9 +68,9 @@ async function processPendingTasks() {
       }
       previousOffset = account.offset
 
-      console.log(`🔄 Processing: ${account.store_name} (scheduled at ${new Date(Date.now() + (account.offset - previousOffset)).toLocaleTimeString()})`)
+      const scheduledTime = new Date(Date.now() + waitTime).toLocaleTimeString()
+      console.log(`🔄 Processing: ${account.store_name} (scheduled at ${scheduledTime})`)
 
-      // Build password list: custom → primary → secondary
       const passwordsToTry: string[] = []
       if (account.customPassword) {
         passwordsToTry.push(account.customPassword)
@@ -96,7 +93,6 @@ async function processPendingTasks() {
             loginSuccess = true
             console.log(`   ✅ Login SUCCESS with ${label}`)
             await updateAccountStatus(account.id, 'success', new Date())
-            await createLoginLog(account.id, 'success')
             break
           } else {
             lastError = result.error || 'Login failed'
@@ -111,11 +107,9 @@ async function processPendingTasks() {
       if (!loginSuccess) {
         console.log(`   ❌ All passwords failed for ${account.store_name}`)
         await updateAccountStatus(account.id, 'needs_password_update', new Date())
-        await createLoginLog(account.id, 'needs_password_update', lastError)
         hasError = true
       }
 
-      // Small random delay between accounts (even if scheduled close)
       await LoginAutomation.delay(1000, 3000)
     }
 

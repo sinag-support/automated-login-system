@@ -63,10 +63,9 @@ export async function POST(req: NextRequest) {
 
     if (insertError) {
       console.error('Failed to insert workflow run:', insertError)
-      // Continue anyway – the workflow will still run
     }
 
-    // Trigger GitHub Action
+    // Trigger GitHub Action with is_manual flag
     const githubResponse = await fetch(
       `https://api.github.com/repos/official-errol/automated-login-system/actions/workflows/daily-login.yml/dispatches`,
       {
@@ -77,13 +76,15 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           ref: 'main',
-          inputs: { day }
+          inputs: {
+            day,
+            is_manual: 'true'   // 👈 flag to indicate manual trigger
+          }
         })
       }
     )
 
     if (!githubResponse.ok) {
-      // If GitHub trigger fails, mark the run as failed
       if (runRecord) {
         await supabase
           .from('workflow_runs')
