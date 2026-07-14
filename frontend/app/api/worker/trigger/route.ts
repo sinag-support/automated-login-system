@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_KEY!
     )
 
-    // Check for existing running workflow
+    // Check existing running workflow
     const { data: existingRun } = await supabase
       .from('workflow_runs')
       .select('id')
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           ref: 'main',
-          inputs: { day, is_manual: 'true' }
+          inputs: { day }   // ✅ only day, no extra fields
         })
       }
     )
@@ -87,7 +87,6 @@ export async function POST(req: NextRequest) {
       const errorText = await githubResponse.text()
       console.error('GitHub API Error:', githubResponse.status, githubResponse.statusText, errorText)
       
-      // Mark the workflow run as failed
       if (runRecord) {
         await supabase
           .from('workflow_runs')
