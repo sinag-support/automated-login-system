@@ -357,7 +357,7 @@ export default function SchedulePage() {
             </Button>
           )}
 
-          {/* Run Automation – keeps full text */}
+          {/* Run Automation – shows running day */}
           <Button
             onClick={handleRunAutomation}
             disabled={buttonDisabled}
@@ -367,7 +367,11 @@ export default function SchedulePage() {
             {isStarting || globalWorkflowRunning ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                <span>{globalWorkflowRunning ? "Running..." : "Starting..."}</span>
+                <span>
+                  {globalWorkflowRunning
+                    ? `Running ${runningDay || selectedDay} Automation...`
+                    : "Starting..."}
+                </span>
               </>
             ) : allAccountsSuccess ? (
               <>
